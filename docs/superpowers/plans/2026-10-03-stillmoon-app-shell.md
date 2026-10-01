@@ -662,8 +662,9 @@ final class LocalStore {
 
     func deleteJournalEntry(id: UUID) {
         let owner = ownerID
-        fetch(FetchDescriptor<JournalEntryRecord>(predicate: #Predicate { $0.ownerID == owner && $0.id == id }))
-            .forEach(context.delete)
+        for record in fetch(FetchDescriptor<JournalEntryRecord>(predicate: #Predicate { $0.ownerID == owner && $0.id == id })) {
+            context.delete(record)
+        }
         save()
     }
 
@@ -956,7 +957,8 @@ extension Color {
     }
 }
 
-struct Theme: Equatable {
+/// nonisolated + Sendable so it can be an environment default under main-actor default isolation.
+nonisolated struct Theme: Equatable, Sendable {
     let background: Color
     let surface: Color
     let text: Color
@@ -1018,7 +1020,7 @@ enum Format {
 
     /// "4:05"
     static func clock(seconds: Int) -> String {
-        String(format: "%d:%02d", seconds / 60, seconds % 60)
+        String(format: "%ld:%02ld", seconds / 60, seconds % 60)
     }
 }
 
@@ -1276,9 +1278,9 @@ struct PlayerRequest: Identifiable, Hashable {
 
 /// The app's shared objects, passed through the SwiftUI environment.
 @Observable final class AppEnvironment {
-    @ObservationIgnored let store: LocalStore
-    @ObservationIgnored let settings: SettingsStore
-    @ObservationIgnored let catalog: ContentCatalog
+    let store: LocalStore
+    let settings: SettingsStore
+    let catalog: ContentCatalog
     /// True while a sound-detection session runs (Plan 4).
     var sessionActive = false
     /// Set to open the exercise player full screen from anywhere.
