@@ -1,0 +1,62 @@
+name: Stillmoon
+options:
+  bundleIdPrefix: app.stillmoon
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  StillmoonCore:
+    path: StillmoonCore
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Stillmoon:
+    type: application
+    platform: iOS
+    sources:
+      - path: App/Stillmoon
+    dependencies:
+      - package: StillmoonCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.stillmoon.ios
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Stillmoon
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+  StillmoonTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: App/StillmoonTests
+    dependencies:
+      - target: Stillmoon
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+  StillmoonUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: App/StillmoonUITests
+    dependencies:
+      - target: Stillmoon
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Stillmoon:
+    build:
+      targets:
+        Stillmoon: all
+    test:
+      targets:
+        - StillmoonTests
+        - StillmoonUITests
