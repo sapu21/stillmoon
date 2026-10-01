@@ -19,7 +19,8 @@ public struct NightExport: Codable, Sendable, Equatable {
     }
 }
 
-/// Everything one account has, local and server-side, for the user's export.
+/// What one account's export holds so far: sleep, check-ins, sound events, completions and feedback.
+/// Preferences, saved items, achievements and manual journal entries are added in Plan 7.
 public struct ExportBundle: Codable, Sendable, Equatable {
     public var exportedAt: Date
     public var nights: [NightExport]
@@ -40,33 +41,47 @@ public struct ExportBundle: Codable, Sendable, Equatable {
 }
 
 public enum ExportWriter {
+    static let fractionalISO = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+
     public static func json(_ bundle: ExportBundle) throws -> Data {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .custom { date, enc in
+            var container = enc.singleValueContainer()
+            try container.encode(date.formatted(fractionalISO))
+        }
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(bundle)
     }
 
     public static func decode(_ data: Data) throws -> ExportBundle {
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .custom { dec in
+            let container = try dec.singleValueContainer()
+            let text = try container.decode(String.self)
+            do {
+                return try fractionalISO.parse(text)
+            } catch {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO 8601 date: \(text)")
+            }
+        }
         return try decoder.decode(ExportBundle.self, from: data)
     }
 
-    public static func nightsCSV(_ nights: [NightExport]) -> String {
+    public static func nightsCSV(_ nights: [NightExport], timeZone: TimeZone) -> String {
         csv(header: ["night_of", "sleep_start", "sleep_end", "asleep_minutes", "source"],
-            rows: nights.map { [iso($0.nightOf), iso($0.sleepStart), iso($0.sleepEnd), String($0.asleepMinutes), $0.primarySource] })
+            rows: nights.map { [localDate($0.nightOf, timeZone), iso($0.sleepStart, timeZone), iso($0.sleepEnd, timeZone),
+                                String($0.asleepMinutes), $0.primarySource] })
     }
 
-    public static func checkInsCSV(_ checkIns: [CheckIn]) -> String {
+    public static func checkInsCSV(_ checkIns: [CheckIn], timeZone: TimeZone) -> String {
         csv(header: ["date", "restedness", "tense_at_bedtime", "woke_during_night", "persistent_difficulty", "note"],
-            rows: checkIns.map { [iso($0.date), String($0.restedness), String($0.tenseAtBedtime),
+            rows: checkIns.map { [iso($0.date, timeZone), String($0.restedness), String($0.tenseAtBedtime),
                                   String($0.wokeDuringNight), String($0.persistentDifficulty), $0.note ?? ""] })
     }
 
-    public static func soundEventsCSV(_ events: [SoundEvent]) -> String {
+    public static func soundEventsCSV(_ events: [SoundEvent], timeZone: TimeZone) -> String {
         csv(header: ["time", "label", "confidence", "correction"],
-            rows: events.map { [iso($0.at), $0.label.rawValue, String($0.confidence), $0.correction.rawValue] })
+            rows: events.map { [iso($0.at, timeZone), $0.label.rawValue, String(format: "%.2f", $0.confidence), $0.correction.rawValue] })
     }
 
     static func csv(header: [String], rows: [[String]]) -> String {
@@ -80,7 +95,11 @@ public enum ExportWriter {
         return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 
-    static func iso(_ date: Date) -> String {
-        date.formatted(.iso8601)
+    static func iso(_ date: Date, _ timeZone: TimeZone) -> String {
+        date.formatted(Date.ISO8601FormatStyle(timeZoneSeparator: .colon, timeZone: timeZone))
+    }
+
+    static func localDate(_ date: Date, _ timeZone: TimeZone) -> String {
+        date.formatted(Date.ISO8601FormatStyle(timeZone: timeZone).year().month().day())
     }
 }

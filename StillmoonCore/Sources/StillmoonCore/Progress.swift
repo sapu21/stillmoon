@@ -5,8 +5,16 @@ public struct ProgressSummary: Sendable, Equatable {
     public let weeklyGoal: Int
     public let goalMet: Bool
     public let totalWindDowns: Int
-    /// 0...6, one per illustrated journey stage.
+    /// 0 = the empty path before the first wind-down; 1...6 = the six illustrated journey stages (PRD §2).
     public let journeyStage: Int
+
+    public init(windDownsThisWeek: Int, weeklyGoal: Int, goalMet: Bool, totalWindDowns: Int, journeyStage: Int) {
+        self.windDownsThisWeek = windDownsThisWeek
+        self.weeklyGoal = weeklyGoal
+        self.goalMet = goalMet
+        self.totalWindDowns = totalWindDowns
+        self.journeyStage = journeyStage
+    }
 }
 
 public enum ProgressCalculator {

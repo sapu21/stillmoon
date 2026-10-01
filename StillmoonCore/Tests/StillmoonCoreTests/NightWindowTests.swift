@@ -25,4 +25,10 @@ struct NightWindowTests {
         #expect(evening == early)
         #expect(evening != nextEvening)
     }
+
+    @Test func nightKeyIsWallClockAcrossDST() {
+        #expect(NightWindow.nightKey(for: T.d(2026, 11, 1, 11, 30), calendar: T.cal) == T.d(2026, 10, 31))
+        #expect(NightWindow.nightKey(for: T.d(2027, 3, 14, 12, 30), calendar: T.cal) == T.d(2027, 3, 14))
+        #expect(NightWindow.nightKey(for: T.d(2027, 3, 14, 11, 30), calendar: T.cal) == T.d(2027, 3, 13))
+    }
 }

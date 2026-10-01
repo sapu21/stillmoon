@@ -40,7 +40,7 @@ public struct RecommendationFeedback: Codable, Sendable, Hashable {
     }
 }
 
-public struct Recommendation: Sendable, Equatable {
+public struct Recommendation: Sendable, Hashable {
     public let itemID: String
     public let reason: String
 

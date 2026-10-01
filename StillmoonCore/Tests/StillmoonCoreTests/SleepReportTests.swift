@@ -89,4 +89,56 @@ struct SleepReportTests {
         let r = try #require(SleepReportBuilder.build(samples: [sample], window: w))
         #expect(r.estimatedAsleep == 9 * 3600)
     }
+
+    @Test func shortDetailedSourceLosesToFullCoverageSource() throws {
+        let watchNap = s(.core, T.d(2026, 10, 2, 5), T.d(2026, 10, 2, 7))
+        let phone = s(.asleepUnspecified, T.d(2026, 10, 1, 23), T.d(2026, 10, 2, 7), "iPhone")
+        let r = try #require(SleepReportBuilder.build(samples: [watchNap, phone], window: window))
+        #expect(r.primarySource == "iPhone")
+        #expect(r.estimatedAsleep == 8 * 3600)
+    }
+
+    @Test func largerOfTwoDetailedSourcesWins() throws {
+        let a = s(.core, T.d(2026, 10, 2, 0), T.d(2026, 10, 2, 6), "A")
+        let b = s(.core, T.d(2026, 10, 1, 23), T.d(2026, 10, 2, 6), "B")
+        let r = try #require(SleepReportBuilder.build(samples: [a, b], window: window))
+        #expect(r.primarySource == "B")
+    }
+
+    @Test func equalDetailedSourcesTieBreakByName() throws {
+        let beta = s(.core, T.d(2026, 10, 1, 23), T.d(2026, 10, 2, 6), "Beta")
+        let alpha = s(.core, T.d(2026, 10, 1, 23), T.d(2026, 10, 2, 6), "Alpha")
+        let r = try #require(SleepReportBuilder.build(samples: [beta, alpha], window: window))
+        #expect(r.primarySource == "Alpha")
+    }
+
+    @Test func eveningNapDoesNotStartTheNight() throws {
+        let nap = s(.core, T.d(2026, 10, 1, 19), T.d(2026, 10, 1, 19, 40))
+        let night = s(.core, T.d(2026, 10, 1, 23), T.d(2026, 10, 2, 7))
+        let r = try #require(SleepReportBuilder.build(samples: [nap, night], window: window))
+        #expect(r.sleepStart == T.d(2026, 10, 1, 23))
+        #expect(r.estimatedAsleep == 8 * 3600)
+        #expect(r.gaps.isEmpty)
+        #expect(r.timeline.count == 1)
+    }
+
+    @Test func awakeBridgesTwoSleepBlocksIntoOneCluster() throws {
+        let samples = [
+            s(.core, T.d(2026, 10, 1, 23), T.d(2026, 10, 2, 1)),
+            s(.awake, T.d(2026, 10, 2, 1), T.d(2026, 10, 2, 3, 30)),
+            s(.core, T.d(2026, 10, 2, 3, 30), T.d(2026, 10, 2, 7)),
+        ]
+        let r = try #require(SleepReportBuilder.build(samples: samples, window: window))
+        #expect(r.sleepStart == T.d(2026, 10, 1, 23))
+        #expect(r.estimatedAsleep == 5 * 3600 + 30 * 60)
+    }
+
+    @Test func timelineOrderIsDeterministicForIdenticalSpans() throws {
+        let core = s(.core, T.d(2026, 10, 1, 23), T.d(2026, 10, 2, 6))
+        let awake = s(.awake, T.d(2026, 10, 1, 23), T.d(2026, 10, 2, 6))
+        for samples in [[core, awake], [awake, core]] {
+            let r = try #require(SleepReportBuilder.build(samples: samples, window: window))
+            #expect(r.timeline.map(\.stage) == [.awake, .core])
+        }
+    }
 }

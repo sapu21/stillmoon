@@ -21,6 +21,8 @@ public struct NightWindow: Sendable, Equatable {
     /// Identifies which night a moment belongs to: the calendar day the night started on.
     /// Anything before noon belongs to the previous day's night.
     public static func nightKey(for date: Date, calendar: Calendar) -> Date {
-        calendar.startOfDay(for: calendar.date(byAdding: .hour, value: -12, to: date)!)
+        let day = calendar.startOfDay(for: date)
+        guard calendar.component(.hour, from: date) < 12 else { return day }
+        return calendar.date(byAdding: .day, value: -1, to: day)!
     }
 }

@@ -14,27 +14,70 @@ public struct NightReport: Sendable, Equatable {
     public let allSources: [String]
     /// Primary-source samples, deduplicated and sorted by start.
     public let timeline: [SleepSample]
+
+    public init(sleepStart: Date, sleepEnd: Date, estimatedAsleep: TimeInterval,
+                stageDurations: [SleepStage: TimeInterval], hasStageDetail: Bool, gaps: [DateInterval],
+                primarySource: String, allSources: [String], timeline: [SleepSample]) {
+        self.sleepStart = sleepStart
+        self.sleepEnd = sleepEnd
+        self.estimatedAsleep = estimatedAsleep
+        self.stageDurations = stageDurations
+        self.hasStageDetail = hasStageDetail
+        self.gaps = gaps
+        self.primarySource = primarySource
+        self.allSources = allSources
+        self.timeline = timeline
+    }
 }
 
 public enum SleepReportBuilder {
     public static let minimumGap: TimeInterval = 15 * 60
+    /// A detailed source is preferred only if its asleep total is at least this share of the largest source's.
+    public static let detailCoverageRatio = 0.5
+    /// A hole this long in the primary source's samples starts a new cluster (nap vs night).
+    public static let clusterBreak: TimeInterval = 2 * 3600
 
     public static func build(samples: [SleepSample], window: NightWindow) -> NightReport? {
         let clipped = Set(samples).compactMap { clip($0, to: window) }
         guard clipped.contains(where: { $0.stage.isAsleep }) else { return nil }
 
         let bySource = Dictionary(grouping: clipped, by: \.sourceName)
-        let ranked = bySource.map { name, items in
+        let stats = bySource.map { name, items in
             (name: name,
              detailed: items.contains { $0.stage.isDetailed },
              asleep: total(merge(items.filter { $0.stage.isAsleep })))
-        }.sorted { a, b in
-            if a.detailed != b.detailed { return a.detailed }
-            if a.asleep != b.asleep { return a.asleep > b.asleep }
-            return a.name < b.name
         }
+        let largest = stats.map(\.asleep).max() ?? 0
+        let ranked = stats.map { (name: $0.name, qualifies: $0.detailed && $0.asleep >= largest * detailCoverageRatio, asleep: $0.asleep) }
+            .sorted { a, b in
+                if a.qualifies != b.qualifies { return a.qualifies }
+                if a.asleep != b.asleep { return a.asleep > b.asleep }
+                return a.name < b.name
+            }
         let primary = ranked[0].name
-        let timeline = Set(bySource[primary]!).sorted { ($0.start, $0.end) < ($1.start, $1.end) }
+
+        // The night is the cluster of primary-source samples with the most asleep time.
+        let primarySamples = Set(bySource[primary]!).sorted {
+            ($0.start, $0.end, $0.stage.rawValue) < ($1.start, $1.end, $1.stage.rawValue)
+        }
+        var clusters: [[SleepSample]] = []
+        var clusterEnd = Date.distantPast
+        for sample in primarySamples {
+            if clusters.isEmpty || sample.start.timeIntervalSince(clusterEnd) >= clusterBreak {
+                clusters.append([sample])
+                clusterEnd = sample.end
+            } else {
+                clusters[clusters.count - 1].append(sample)
+                clusterEnd = max(clusterEnd, sample.end)
+            }
+        }
+        let candidates = clusters.map { cluster in
+            (samples: cluster,
+             asleep: total(merge(cluster.filter { $0.stage.isAsleep })),
+             end: cluster.map(\.end).max()!)
+        }.filter { $0.asleep > 0 }
+        guard let night = candidates.max(by: { ($0.asleep, $0.end) < ($1.asleep, $1.end) }) else { return nil }
+        let timeline = night.samples
 
         let asleep = merge(timeline.filter { $0.stage.isAsleep })
         let sleepStart = asleep.first!.start
