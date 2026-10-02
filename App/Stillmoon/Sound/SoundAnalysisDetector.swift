@@ -86,8 +86,8 @@ final class SoundAnalysisDetector: SoundDetecting {
             try buildAndStartEngine()
         } catch {
             // Leave stopped; the session controller's interruption handling will pause.
-            removeTapAndDrain()
             isRunning = false
+            teardown()
         }
     }
 
