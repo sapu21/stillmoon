@@ -76,6 +76,36 @@ struct SoundSessionControllerTests {
         c.handleInterruption(began: false)
         #expect(detector.isRunning)
         #expect(session != nil)
+        #expect(store.interruptions(sessionID: session!) == 1)
+    }
+
+    @Test func interruptionEndDoesNotResumeUserPause() async throws {
+        let (c, _, detector, _) = try make()
+        try await c.start()
+        c.pause()
+        c.handleInterruption(began: false)
+        #expect(c.state == .paused(since: now))
+        #expect(!detector.isRunning)
+    }
+
+    @Test func doubleStartOpensOneSession() async throws {
+        let (c, store, _, _) = try make()
+        async let a: Void = c.start()
+        async let b: Void = c.start()
+        _ = try await (a, b)
+        #expect(c.state == .running(since: now))
+        #expect(store.openSessionID() != nil)
+        c.stop()
+        #expect(store.openSessionID() == nil)
+    }
+
+    @Test func flagChangeOnEnvironmentDisablesSound() throws {
+        let settings = TestEnv.settings()
+        settings.settings.soundDetectionEnabled = true
+        let env = AppEnvironment(store: try TestEnv.store(), settings: settings, catalog: .empty)
+        #expect(env.sound.isAvailable)
+        env.flags.soundDetection = false
+        #expect(!env.sound.isAvailable)
     }
 
     @Test(arguments: [(BatteryState(level: 0.2, charging: false), true),

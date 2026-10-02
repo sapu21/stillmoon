@@ -201,6 +201,11 @@ final class LocalStore {
         save()
     }
 
+    func interruptions(sessionID id: UUID) -> Int {
+        let owner = ownerID
+        return fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.id == id })).first?.interruptions ?? 0
+    }
+
     func openSessionID() -> UUID? {
         let owner = ownerID
         return fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.endedAt == nil },

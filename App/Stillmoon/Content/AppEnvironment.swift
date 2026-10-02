@@ -10,12 +10,21 @@ struct PlayerRequest: Identifiable, Hashable {
 }
 
 /// The app's shared objects, passed through the SwiftUI environment.
+/// Shared so the sound controller always reads the environment's current flags.
+final class FlagsBox {
+    var value = FeatureFlags()
+}
+
 @Observable final class AppEnvironment {
     let store: LocalStore
     let settings: SettingsStore
     let catalog: ContentCatalog
     let health: HealthDataSource
-    var flags = FeatureFlags()
+    @ObservationIgnored private let flagsBox: FlagsBox
+    var flags: FeatureFlags {
+        get { flagsBox.value }
+        set { flagsBox.value = newValue }
+    }
     let sound: SoundSessionController
     /// True while a sound-detection session runs.
     var sessionActive: Bool { sound.isActive }
@@ -23,14 +32,18 @@ struct PlayerRequest: Identifiable, Hashable {
     var playerRequest: PlayerRequest?
 
     init(store: LocalStore, settings: SettingsStore, catalog: ContentCatalog,
-         health: HealthDataSource = FakeHealthSource(), sound: SoundSessionController? = nil) {
+         health: HealthDataSource = FakeHealthSource(),
+         sound makeSound: ((@escaping () -> FeatureFlags) -> SoundSessionController)? = nil) {
+        let box = FlagsBox()
+        flagsBox = box
+        let flagsReader: () -> FeatureFlags = { box.value }
         self.store = store
         self.settings = settings
         self.catalog = catalog
         self.health = health
-        self.sound = sound ?? SoundSessionController(
+        self.sound = makeSound?(flagsReader) ?? SoundSessionController(
             store: store, detector: FakeSoundDetector(), permission: FakeMicrophonePermission(granted: true),
-            battery: FakeBattery(), settings: settings, flags: { FeatureFlags() })
+            battery: FakeBattery(), settings: settings, flags: flagsReader)
     }
 
     /// Asks for Health access. HealthKit never says whether read access was granted,
@@ -83,14 +96,21 @@ struct PlayerRequest: Identifiable, Hashable {
             : SoundAnalysisDetector()
         let permission: MicrophonePermission = fakeSound ? FakeMicrophonePermission(granted: true) : SystemMicrophonePermission()
         let battery: BatteryReading = fakeSound ? FakeBattery() : DeviceBattery()
-        let sound = SoundSessionController(store: store, detector: detector, permission: permission,
-                                           battery: battery, settings: settings, flags: { FeatureFlags() })
-        let env = AppEnvironment(store: store, settings: settings, catalog: catalog, health: health, sound: sound)
+        let env = AppEnvironment(store: store, settings: settings, catalog: catalog, health: health) { flags in
+            SoundSessionController(store: store, detector: detector, permission: permission,
+                                   battery: battery, settings: settings, flags: flags)
+        }
+        let sound = env.sound
         if !fakeSound {
             NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil,
                                                    queue: .main) { [weak sound] note in
                 guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
                       let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+                if type == .ended {
+                    let options = AVAudioSession.InterruptionOptions(
+                        rawValue: note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
+                    guard options.contains(.shouldResume) else { return }
+                }
                 MainActor.assumeIsolated { sound?.handleInterruption(began: type == .began) }
             }
         }

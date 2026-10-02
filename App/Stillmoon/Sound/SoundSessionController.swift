@@ -31,6 +31,11 @@ enum SoundSessionError: Error, Equatable {
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private var debouncer = SoundEventDebouncer()
     @ObservationIgnored private var sessionID: UUID?
+    @ObservationIgnored private var pausedByInterruption = false
+    @ObservationIgnored private var starting = false
+
+    /// Set when a resume after an interruption fails; cleared on the next successful start or resume.
+    private(set) var lastError: SoundSessionError?
 
     private(set) var state: State = .idle
 
@@ -55,9 +60,12 @@ enum SoundSessionError: Error, Equatable {
     }
 
     func start() async throws {
-        guard state == .idle else { return }
+        guard state == .idle, !starting else { return }
         guard isAvailable else { throw SoundSessionError.notAvailable }
+        starting = true
+        defer { starting = false }
         guard await permission.request() else { throw SoundSessionError.permissionDenied }
+        guard state == .idle else { return }
         let started = now()
         let id = store.startSoundSession(at: started)
         sessionID = id
@@ -72,9 +80,15 @@ enum SoundSessionError: Error, Equatable {
             state = .idle
             throw SoundSessionError.couldNotStart
         }
+        lastError = nil
     }
 
     func pause() {
+        pausedByInterruption = false
+        pauseListening()
+    }
+
+    private func pauseListening() {
         guard case .running(let since) = state else { return }
         detector.stop()
         saveClosed(debouncer.flush())
@@ -82,6 +96,11 @@ enum SoundSessionError: Error, Equatable {
     }
 
     func resume() throws {
+        pausedByInterruption = false
+        try resumeListening()
+    }
+
+    private func resumeListening() throws {
         guard case .paused(let since) = state else { return }
         state = .running(since: since)
         do {
@@ -90,10 +109,12 @@ enum SoundSessionError: Error, Equatable {
             state = .paused(since: since)
             throw error
         }
+        lastError = nil
     }
 
     func stop() {
         guard isActive else { return }
+        pausedByInterruption = false
         detector.stop()
         saveClosed(debouncer.flush())
         if let id = sessionID { store.endSoundSession(id, at: now()) }
@@ -106,9 +127,12 @@ enum SoundSessionError: Error, Equatable {
         if began {
             guard case .running = state else { return }
             if let id = sessionID { store.recordInterruption(sessionID: id) }
-            pause()
+            pauseListening()
+            pausedByInterruption = true
         } else {
-            try? resume()
+            guard pausedByInterruption else { return }
+            pausedByInterruption = false
+            do { try resumeListening() } catch { lastError = .couldNotStart }
         }
     }
 
@@ -118,17 +142,18 @@ enum SoundSessionError: Error, Equatable {
     }
 
     private func startDetector() throws {
+        let captured = sessionID
         try detector.start { [weak self] observation in
             if Thread.isMainThread {
-                MainActor.assumeIsolated { self?.receive(observation) }
+                MainActor.assumeIsolated { self?.receive(observation, session: captured) }
             } else {
-                Task { @MainActor in self?.receive(observation) }
+                Task { @MainActor in self?.receive(observation, session: captured) }
             }
         }
     }
 
-    private func receive(_ observation: SoundObservation) {
-        guard case .running = state, let label = SoundLabel(classifierIdentifier: observation.identifier) else { return }
+    private func receive(_ observation: SoundObservation, session: UUID?) {
+        guard session == sessionID, case .running = state, let label = SoundLabel(classifierIdentifier: observation.identifier) else { return }
         saveClosed(debouncer.add(SoundObservationInput(label: label, confidence: observation.confidence, time: observation.time)))
     }
 
