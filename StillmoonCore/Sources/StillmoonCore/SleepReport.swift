@@ -1,6 +1,6 @@
 import Foundation
 
-public struct NightReport: Sendable, Equatable {
+public struct NightReport: Sendable, Equatable, Hashable {
     public let sleepStart: Date
     public let sleepEnd: Date
     /// Seconds asleep (core, deep, REM, unspecified), overlaps merged.

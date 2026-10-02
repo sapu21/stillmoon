@@ -31,7 +31,7 @@ struct MainTabs: View {
 
     init(env: AppEnvironment) {
         _today = State(initialValue: TodayModel(store: env.store, settings: env.settings, catalog: env.catalog))
-        _sleep = State(initialValue: SleepModel(store: env.store))
+        _sleep = State(initialValue: SleepModel(store: env.store, health: env.health, settings: env.settings))
         _exercises = State(initialValue: ExercisesModel(store: env.store, catalog: env.catalog))
         _journey = State(initialValue: JourneyModel(store: env.store, settings: env.settings, catalog: env.catalog))
     }

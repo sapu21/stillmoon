@@ -15,10 +15,11 @@ struct SleepView: View {
             ForEach(model.rows) { row in
                 NightRowView(row: row)
                     .listRowBackground(theme.surface)
+                    .deleteDisabled(row.entry == nil)
             }
             .onDelete { offsets in
                 let rows = offsets.map { model.rows[$0] }
-                rows.forEach { model.delete($0) }
+                Task { for row in rows { await model.deleteEntry(of: row) } }
             }
         }
         .scrollContentBackground(.hidden)
@@ -31,9 +32,9 @@ struct SleepView: View {
             }
         }
         .sheet(isPresented: $addingEntry) {
-            JournalEntryForm { model.save($0) }
+            JournalEntryForm { entry in Task { await model.save(entry) } }
         }
-        .onAppear { model.refresh() }
+        .task { await model.refresh() }
     }
 }
 
@@ -41,23 +42,24 @@ struct NightRowView: View {
     @Environment(\.theme) private var theme
     let row: NightRow
 
-    private var bedtime: String { row.entry.bedtime.formatted(date: .omitted, time: .shortened) }
-    private var wake: String { row.entry.wakeTime.formatted(date: .omitted, time: .shortened) }
-    private var duration: String { Format.duration(minutes: row.entry.inBedMinutes) }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(row.entry.wakeTime, format: .dateTime.weekday(.wide).month().day())
+            Text(row.morning, format: .dateTime.weekday(.wide).month().day())
                 .font(.headline)
-            Text("You recorded \(bedtime) to \(wake) · \(duration) in bed")
-                .font(.subheadline)
-                .foregroundStyle(theme.secondaryText)
-                .accessibilityLabel("You recorded \(bedtime) to \(wake), \(duration) in bed")
+            if let entry = row.entry {
+                let bedtime = entry.bedtime.formatted(date: .omitted, time: .shortened)
+                let wake = entry.wakeTime.formatted(date: .omitted, time: .shortened)
+                let duration = Format.duration(minutes: entry.inBedMinutes)
+                Text("You recorded \(bedtime) to \(wake) · \(duration) in bed")
+                    .font(.subheadline)
+                    .foregroundStyle(theme.secondaryText)
+                    .accessibilityLabel("You recorded \(bedtime) to \(wake), \(duration) in bed")
+            }
             if let checkIn = row.checkIn {
                 Text("You felt \(checkIn.restedness) of 5 rested")
                     .font(.subheadline)
             }
-            if let note = row.entry.note, !note.isEmpty {
+            if let note = row.entry?.note, !note.isEmpty {
                 Text(note)
                     .font(.callout)
                     .foregroundStyle(theme.secondaryText)
