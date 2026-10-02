@@ -20,6 +20,7 @@ struct ResolvedRecommendation: Identifiable, Hashable {
     @ObservationIgnored private let settings: SettingsStore
     @ObservationIgnored private let catalog: ContentCatalog
     @ObservationIgnored private let health: HealthDataSource
+    @ObservationIgnored private var generation = 0
     @ObservationIgnored private var healthBedtimes: [Date] = []
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let calendar: Calendar
@@ -81,22 +82,33 @@ struct ResolvedRecommendation: Identifiable, Hashable {
     }
 
     /// Reads the last 7 nights from Health (when connected), then recomputes everything.
+    /// Results are computed into locals and assigned once, so overlapping calls never show a half-cleared state.
     func refreshHealth() async {
+        generation += 1
+        let mine = generation
         let now = clock()
-        lastNightReport = nil
-        healthBedtimes = []
+        var report: NightReport?
+        var bedtimes: [Date] = []
         if settings.settings.healthConnected {
             let today = calendar.startOfDay(for: now)
             let oldest = calendar.date(byAdding: .day, value: -6, to: today)!
-            if let samples = try? await health.sleepSamples(from: NightWindow.forMorning(of: oldest, calendar: calendar).start, to: now) {
+            do {
+                let samples = try await health.sleepSamples(from: NightWindow.forMorning(of: oldest, calendar: calendar).start, to: now)
                 for offset in 0..<7 {
                     let morning = calendar.date(byAdding: .day, value: -offset, to: today)!
-                    guard let report = SleepReportBuilder.build(samples: samples, window: NightWindow.forMorning(of: morning, calendar: calendar)) else { continue }
-                    if offset == 0 { lastNightReport = report }
-                    healthBedtimes.append(report.sleepStart)
+                    guard let night = SleepReportBuilder.build(samples: samples, window: NightWindow.forMorning(of: morning, calendar: calendar)) else { continue }
+                    if offset == 0 { report = night }
+                    bedtimes.append(night.sleepStart)
                 }
+            } catch is CancellationError {
+                return
+            } catch {
+                // Leave locals empty.
             }
+            guard !Task.isCancelled, mine == generation else { return }
         }
+        lastNightReport = report
+        healthBedtimes = bedtimes
         refresh()
     }
 

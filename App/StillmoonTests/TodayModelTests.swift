@@ -39,6 +39,16 @@ struct TodayModelTests {
         #expect(m.recommendations.first?.reason == "Your recorded bedtimes varied this week.")
     }
 
+    @Test func disconnectingClearsLastNightReport() async throws {
+        let (m, _, settings) = try makeWithSettings(connected: true, samples: FakeHealthSource.sampleNight(endingOn: now, calendar: TestEnv.cal))
+        await m.refreshHealth()
+        #expect(m.lastNightReport != nil)
+        settings.settings.healthConnected = false
+        await m.refreshHealth()
+        #expect(m.lastNightReport == nil)
+        #expect(!m.recommendations.isEmpty)
+    }
+
     @Test func healthAndJournalBedtimesDedupedPerNight() {
         let journal = [TestEnv.d(2026, 10, 1, 23)]
         let health = [TestEnv.d(2026, 10, 1, 23, 20), TestEnv.d(2026, 9, 30, 22)]
@@ -46,10 +56,12 @@ struct TodayModelTests {
         #expect(combined.sorted() == [TestEnv.d(2026, 9, 30, 22), TestEnv.d(2026, 10, 1, 23, 20)])
     }
 
-    func makeWithSettings() throws -> (TodayModel, LocalStore, SettingsStore) {
+    func makeWithSettings(connected: Bool = false, samples: [SleepSample] = []) throws -> (TodayModel, LocalStore, SettingsStore) {
         let store = try TestEnv.store()
         let settings = TestEnv.settings()
+        settings.settings.healthConnected = connected
         let model = TodayModel(store: store, settings: settings, catalog: TestEnv.catalog,
+                               health: FakeHealthSource(samples: samples),
                                now: { now }, calendar: TestEnv.cal)
         return (model, store, settings)
     }

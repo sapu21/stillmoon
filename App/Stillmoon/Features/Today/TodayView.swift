@@ -40,7 +40,7 @@ struct TodayView: View {
         .sheet(isPresented: $showingJournal, onDismiss: model.refresh) {
             JournalEntryForm { model.saveJournalEntry($0) }
         }
-        .sheet(isPresented: $showingSettings, onDismiss: model.refresh) {
+        .sheet(isPresented: $showingSettings, onDismiss: { Task { await model.refreshHealth() } }) {
             SettingsView()
         }
         .task { await model.refreshHealth() }
