@@ -34,7 +34,7 @@ struct RecentCompletion: Identifiable, Hashable {
     }
 
     var isHidden: Bool { settings.settings.hideProgress }
-    var stageName: String { Self.stageNames[summary.journeyStage] }
+    var stageName: String { Self.stageNames[min(max(summary.journeyStage, 0), Self.stageNames.count - 1)] }
 
     func refresh() {
         let completions = store.completions()

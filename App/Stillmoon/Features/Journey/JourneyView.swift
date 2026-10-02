@@ -21,6 +21,8 @@ struct JourneyView: View {
                             ProgressView(value: Double(min(model.summary.windDownsThisWeek, model.summary.weeklyGoal)),
                                          total: Double(model.summary.weeklyGoal))
                                 .tint(theme.accent)
+                                .accessibilityLabel("Wind-downs this week")
+                                .accessibilityValue("\(model.summary.windDownsThisWeek) of \(model.summary.weeklyGoal)")
                             Text("Missed days are fine. Your path only moves forward.")
                                 .font(.footnote)
                                 .foregroundStyle(theme.secondaryText)
@@ -29,7 +31,7 @@ struct JourneyView: View {
                     Card {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(model.stageName).font(.headline)
-                            JourneyPath(stage: model.summary.journeyStage)
+                            JourneyPath(stage: model.summary.journeyStage, name: model.stageName)
                             Text("\(model.summary.totalWindDowns) wind-downs so far")
                                 .font(.footnote)
                                 .foregroundStyle(theme.secondaryText)
@@ -63,6 +65,7 @@ struct JourneyView: View {
 struct JourneyPath: View {
     @Environment(\.theme) private var theme
     let stage: Int
+    let name: String
 
     var body: some View {
         HStack(spacing: 0) {
@@ -78,6 +81,6 @@ struct JourneyPath: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Journey stage \(stage) of 6")
+        .accessibilityLabel("\(name), stage \(stage) of 6")
     }
 }
