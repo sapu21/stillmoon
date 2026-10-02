@@ -74,6 +74,7 @@ struct ResolvedRecommendation: Identifiable, Hashable {
     }
 
     /// Bedtimes for recommendations: one per night, a Health estimate replacing the journal entry for the same night.
+    /// Health values are when sleep began; journal values are when the user went to bed. Both are good enough for the "bedtimes varied" rule.
     static func combinedBedtimes(journal: [Date], health: [Date], calendar: Calendar) -> [Date] {
         var byNight: [Date: Date] = [:]
         for bedtime in journal { byNight[NightWindow.nightKey(for: bedtime, calendar: calendar)] = bedtime }

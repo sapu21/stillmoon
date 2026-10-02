@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingDelete = false
+    @State private var connecting = false
 
     var body: some View {
         @Bindable var settings = env.settings
@@ -18,14 +19,22 @@ struct SettingsView: View {
                 Section {
                     if env.settings.settings.healthConnected {
                         LabeledContent("Apple Health", value: "Connected")
-                        Button("Stop reading Apple Health") { env.settings.settings.healthConnected = false }
+                        Button("Disconnect Apple Health") { env.settings.settings.healthConnected = false }
                     } else {
-                        Button("Connect Apple Health") { Task { _ = await env.connectHealth() } }
+                        Button("Connect Apple Health") {
+                            guard !connecting else { return }
+                            connecting = true
+                            Task {
+                                _ = await env.connectHealth()
+                                connecting = false
+                            }
+                        }
+                        .disabled(connecting)
                     }
                 } header: {
                     Text("Apple Health")
                 } footer: {
-                    Text("To change what Stillmoon can read or write, open the Health app, then Sharing, Apps, Stillmoon.")
+                    Text("Disconnecting stops reading sleep and saving Mindful Minutes. To change permissions, open the Health app, then Sharing, Apps, Stillmoon.")
                 }
                 Section {
                     Toggle("Use my bedtime and wake time", isOn: Binding(

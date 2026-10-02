@@ -81,11 +81,29 @@ struct PlayerModelTests {
         let m = PlayerModel(exercise: TestEnv.catalog.exercises[0], store: try TestEnv.store(),
                             now: { clock }, onFinish: { finished.append($0) })
         m.play()
+        for _ in 0..<3 { m.tick() }
         clock = TestEnv.d(2026, 10, 2, 22, 5)
-        m.skipStep()
-        m.skipStep()
+        m.skipStep()   // skips the remaining 2 s of the second step
         m.finish()
-        #expect(finished == [DateInterval(start: TestEnv.d(2026, 10, 2, 22), end: TestEnv.d(2026, 10, 2, 22, 5))])
+        #expect(finished == [DateInterval(start: TestEnv.d(2026, 10, 2, 22, 5).addingTimeInterval(-5),
+                                          end: TestEnv.d(2026, 10, 2, 22, 5))])
+    }
+
+    @Test func pausedTimeIsNotCounted() throws {
+        var finished: [DateInterval] = []
+        var clock = TestEnv.d(2026, 10, 2, 22)
+        let m = PlayerModel(exercise: TestEnv.catalog.exercises[0], store: try TestEnv.store(),
+                            now: { clock }, onFinish: { finished.append($0) })
+        m.play()
+        for _ in 0..<2 { m.tick() }
+        m.pause()
+        clock = TestEnv.d(2026, 10, 2, 23)
+        m.play()
+        for _ in 0..<3 { m.tick() }
+        #expect(m.isComplete)
+        #expect(finished.count == 1)
+        #expect(finished.first?.duration == 5)
+        #expect(finished.first?.end == TestEnv.d(2026, 10, 2, 23))
     }
 
     @Test func onFinishNotCalledWhenEndedEarly() throws {

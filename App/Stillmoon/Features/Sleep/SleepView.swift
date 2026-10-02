@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SleepView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.scenePhase) private var scenePhase
     let model: SleepModel
     @State private var addingEntry = false
 
@@ -34,6 +35,9 @@ struct SleepView: View {
                 let rows = offsets.map { model.rows[$0] }
                 Task { for row in rows { await model.deleteEntry(of: row) } }
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await model.refresh() } }
         }
         .navigationDestination(for: NightRow.self) { NightDetailView(row: $0) }
         .scrollContentBackground(.hidden)

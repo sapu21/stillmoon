@@ -8,7 +8,8 @@ import StillmoonCore
     @ObservationIgnored private let store: LocalStore
     @ObservationIgnored private let now: () -> Date
     @ObservationIgnored private let onFinish: ((DateInterval) -> Void)?
-    private(set) var startedAt: Date?
+    /// Seconds actually played; paused time never counts.
+    private(set) var playedSeconds = 0
     private(set) var stepIndex = 0
     private(set) var elapsedInStep = 0
     private(set) var isPlaying = false
@@ -33,7 +34,6 @@ import StillmoonCore
 
     func play() {
         guard !isComplete else { return }
-        if startedAt == nil { startedAt = now() }
         isPlaying = true
     }
 
@@ -44,11 +44,13 @@ import StillmoonCore
     func tick() {
         guard isPlaying, !isComplete else { return }
         elapsedInStep += 1
+        playedSeconds += 1
         if elapsedInStep >= currentStep.seconds { advance() }
     }
 
     func skipStep() {
         guard !isComplete else { return }
+        if isPlaying { playedSeconds += max(0, currentStep.seconds - elapsedInStep) }
         advance()
     }
 
@@ -57,10 +59,9 @@ import StillmoonCore
         guard !isComplete else { return }
         isComplete = true
         isPlaying = false
-        store.addCompletion(ExerciseCompletion(exerciseID: exercise.id, category: exercise.category, completedAt: now()))
         let end = now()
-        let start = startedAt ?? end.addingTimeInterval(-Double(exercise.durationSeconds))
-        onFinish?(DateInterval(start: min(start, end), end: end))
+        store.addCompletion(ExerciseCompletion(exerciseID: exercise.id, category: exercise.category, completedAt: end))
+        onFinish?(DateInterval(start: end.addingTimeInterval(-Double(max(playedSeconds, 1))), end: end))
     }
 
     private func advance() {

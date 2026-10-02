@@ -5,6 +5,7 @@ struct OnboardingView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.theme) private var theme
     @State private var model: OnboardingModel
+    @State private var connecting = false
 
     init(settings: SettingsStore) {
         _model = State(initialValue: OnboardingModel(settings: settings))
@@ -44,12 +45,17 @@ struct OnboardingView: View {
                 Text("Stillmoon can read sleep from Apple Health and save finished exercises as Mindful Minutes. Your sleep data stays on this iPhone.")
                     .foregroundStyle(theme.secondaryText)
                 primary("Connect Apple Health") {
+                    guard !connecting else { return }
+                    connecting = true
                     Task {
                         _ = await env.connectHealth()
                         model.next()
+                        connecting = false
                     }
                 }
+                .disabled(connecting)
                 Button("Not now") { model.next() }
+                    .disabled(connecting)
             case .privacy:
                 Text("Your nights stay yours").font(.title.weight(.semibold))
                 VStack(alignment: .leading, spacing: 12) {
