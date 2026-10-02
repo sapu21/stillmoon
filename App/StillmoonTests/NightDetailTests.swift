@@ -33,4 +33,20 @@ struct NightDetailTests {
         #expect(line.hasPrefix("No data from "))
         #expect(!line.contains("error"))
     }
+
+    @Test func timelineDescriptionListsStagesInOrder() {
+        let text = NightSummary.timelineDescription(report())
+        #expect(text.hasPrefix("Core "))
+        #expect(text.contains("Deep "))
+        #expect(text.filter { $0 == "," }.count == 4)
+    }
+
+    @Test func incompleteNoteOnlyWithGaps() {
+        #expect(NightSummary.incompleteNote(report()) == nil)
+        let gappy = [
+            SleepSample(stage: .core, start: TestEnv.d(2026, 10, 1, 23), end: TestEnv.d(2026, 10, 2, 1), sourceName: "Apple Watch"),
+            SleepSample(stage: .core, start: TestEnv.d(2026, 10, 2, 2), end: TestEnv.d(2026, 10, 2, 7), sourceName: "Apple Watch"),
+        ]
+        #expect(NightSummary.incompleteNote(report(samples: gappy)) != nil)
+    }
 }

@@ -18,6 +18,17 @@ enum NightSummary {
         "\(report.primarySource) estimated \(Format.duration(minutes: Int(report.estimatedAsleep / 60))) asleep"
     }
 
+    static func timelineDescription(_ report: NightReport) -> String {
+        report.timeline
+            .filter { stageOrder.contains($0.stage) }
+            .map { "\($0.stage.title) \($0.start.formatted(date: .omitted, time: .shortened)) to \($0.end.formatted(date: .omitted, time: .shortened))" }
+            .joined(separator: ", ")
+    }
+
+    static func incompleteNote(_ report: NightReport) -> String? {
+        report.gaps.isEmpty ? nil : "Part of the night wasn't recorded, so totals may be lower than your actual sleep."
+    }
+
     static func gapLine(_ gap: DateInterval) -> String {
         "No data from \(gap.start.formatted(date: .omitted, time: .shortened)) to \(gap.end.formatted(date: .omitted, time: .shortened))."
     }
@@ -41,7 +52,7 @@ struct NightDetailView: View {
                             Text("\(report.sleepStart.formatted(date: .omitted, time: .shortened)) to \(report.sleepEnd.formatted(date: .omitted, time: .shortened))")
                                 .foregroundStyle(theme.secondaryText)
                             if report.hasStageDetail {
-                                StageChart(timeline: report.timeline)
+                                StageChart(timeline: report.timeline, description: NightSummary.timelineDescription(report))
                                 ForEach(NightSummary.stageRows(report), id: \.stage) { item in
                                     HStack {
                                         Text(item.stage.title)
@@ -49,6 +60,7 @@ struct NightDetailView: View {
                                         Text(Format.duration(minutes: Int(item.seconds / 60)))
                                             .foregroundStyle(theme.secondaryText)
                                     }
+                                    .accessibilityElement(children: .combine)
                                 }
                                 Text("Stages are estimates from your device, not measurements.")
                                     .font(.footnote)
@@ -60,6 +72,11 @@ struct NightDetailView: View {
                             }
                             ForEach(report.gaps, id: \.self) { gap in
                                 Text(NightSummary.gapLine(gap))
+                                    .font(.footnote)
+                                    .foregroundStyle(theme.secondaryText)
+                            }
+                            if let note = NightSummary.incompleteNote(report) {
+                                Text(note)
                                     .font(.footnote)
                                     .foregroundStyle(theme.secondaryText)
                             }
@@ -105,6 +122,22 @@ struct NightDetailView: View {
 struct StageChart: View {
     @Environment(\.theme) private var theme
     let timeline: [SleepSample]
+    let description: String
+    @ScaledMetric private var chartHeight: CGFloat = 160
+
+    init(timeline: [SleepSample], description: String) {
+        self.timeline = timeline
+        self.description = description
+    }
+
+    private func color(for stage: SleepStage) -> Color {
+        switch stage {
+        case .awake: theme.accent2
+        case .rem: theme.accent.opacity(0.55)
+        case .core: theme.accent.opacity(0.8)
+        default: theme.accent
+        }
+    }
 
     var body: some View {
         let staged = timeline.filter { NightSummary.stageOrder.contains($0.stage) }
@@ -112,7 +145,7 @@ struct StageChart: View {
             BarMark(xStart: .value("Start", sample.start),
                     xEnd: .value("End", sample.end),
                     y: .value("Stage", sample.stage.title))
-                .foregroundStyle(theme.accent)
+                .foregroundStyle(color(for: sample.stage))
         }
         .chartYScale(domain: NightSummary.stageOrder.map(\.title))
         .chartXAxis {
@@ -121,9 +154,9 @@ struct StageChart: View {
                 AxisValueLabel(format: .dateTime.hour())
             }
         }
-        .frame(height: 160)
+        .frame(height: chartHeight)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sleep stage timeline")
-        .accessibilityValue("Estimated stages from \(staged.first?.sourceName ?? "your device"), listed below")
+        .accessibilityValue(description)
     }
 }
