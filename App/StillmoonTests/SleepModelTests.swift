@@ -80,4 +80,16 @@ struct SleepModelTests {
         await m.refresh()
         #expect(m.rows.map(\.morning) == [TestEnv.d(2026, 10, 2)])
     }
+
+    @Test func failedReadClearsOnNextSuccessfulRefresh() async throws {
+        let (m, _, health) = try make()
+        health.failReads = true
+        await m.refresh()
+        #expect(m.healthError)
+        health.failReads = false
+        await m.refresh()
+        #expect(!m.healthError)
+        #expect(m.rows.count == 1)
+        #expect(m.rows[0].report != nil)
+    }
 }

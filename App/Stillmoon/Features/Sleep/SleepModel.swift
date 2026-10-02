@@ -20,6 +20,8 @@ struct NightRow: Identifiable, Hashable {
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let calendar: Calendar
 
+    @ObservationIgnored private var generation = 0
+
     private(set) var rows: [NightRow] = []
     private(set) var healthError = false
 
@@ -35,10 +37,12 @@ struct NightRow: Identifiable, Hashable {
     var isHealthConnected: Bool { settings.settings.healthConnected }
 
     func refresh() async {
+        generation += 1
+        let mine = generation
         let now = clock()
         let today = calendar.startOfDay(for: now)
         var reports: [Date: NightReport] = [:]
-        healthError = false
+        var failed = false
 
         if isHealthConnected {
             let oldestMorning = calendar.date(byAdding: .day, value: -(Self.historyDays - 1), to: today)!
@@ -46,16 +50,20 @@ struct NightRow: Identifiable, Hashable {
             do {
                 let samples = try await health.sleepSamples(from: from, to: now)
                 for offset in 0..<Self.historyDays {
-                    let morning = calendar.date(byAdding: .day, value: -offset, to: today)!
+                    let morning = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -offset, to: today)!)
                     let window = NightWindow.forMorning(of: morning, calendar: calendar)
                     if let report = SleepReportBuilder.build(samples: samples, window: window) {
                         reports[morning] = report
                     }
                 }
+            } catch is CancellationError {
+                return
             } catch {
-                healthError = true
+                failed = true
             }
         }
+        guard !Task.isCancelled, mine == generation else { return }
+        healthError = failed
 
         let entriesByMorning = Dictionary(grouping: store.journalEntries()) { calendar.startOfDay(for: $0.wakeTime) }
         let checkIns = store.checkIns()
