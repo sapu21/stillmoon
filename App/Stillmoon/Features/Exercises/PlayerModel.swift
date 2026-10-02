@@ -7,16 +7,20 @@ import StillmoonCore
     let exercise: Exercise
     @ObservationIgnored private let store: LocalStore
     @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let onFinish: ((DateInterval) -> Void)?
+    private(set) var startedAt: Date?
     private(set) var stepIndex = 0
     private(set) var elapsedInStep = 0
     private(set) var isPlaying = false
     private(set) var isComplete = false
 
-    init(exercise: Exercise, store: LocalStore, now: @escaping () -> Date = Date.init) {
+    init(exercise: Exercise, store: LocalStore, now: @escaping () -> Date = Date.init,
+         onFinish: ((DateInterval) -> Void)? = nil) {
         precondition(!exercise.steps.isEmpty, "Exercise \(exercise.id) has no steps")
         self.exercise = exercise
         self.store = store
         self.now = now
+        self.onFinish = onFinish
     }
 
     var currentStep: ExerciseStep { exercise.steps[stepIndex] }
@@ -29,6 +33,7 @@ import StillmoonCore
 
     func play() {
         guard !isComplete else { return }
+        if startedAt == nil { startedAt = now() }
         isPlaying = true
     }
 
@@ -53,6 +58,9 @@ import StillmoonCore
         isComplete = true
         isPlaying = false
         store.addCompletion(ExerciseCompletion(exerciseID: exercise.id, category: exercise.category, completedAt: now()))
+        let end = now()
+        let start = startedAt ?? end.addingTimeInterval(-Double(exercise.durationSeconds))
+        onFinish?(DateInterval(start: min(start, end), end: end))
     }
 
     private func advance() {

@@ -74,4 +74,27 @@ struct PlayerModelTests {
         #expect(!m.isComplete)
         #expect(store.completions().isEmpty)
     }
+
+    @Test func onFinishCalledOnceWithInterval() throws {
+        var finished: [DateInterval] = []
+        var clock = TestEnv.d(2026, 10, 2, 22)
+        let m = PlayerModel(exercise: TestEnv.catalog.exercises[0], store: try TestEnv.store(),
+                            now: { clock }, onFinish: { finished.append($0) })
+        m.play()
+        clock = TestEnv.d(2026, 10, 2, 22, 5)
+        m.skipStep()
+        m.skipStep()
+        m.finish()
+        #expect(finished == [DateInterval(start: TestEnv.d(2026, 10, 2, 22), end: TestEnv.d(2026, 10, 2, 22, 5))])
+    }
+
+    @Test func onFinishNotCalledWhenEndedEarly() throws {
+        var calls = 0
+        let m = PlayerModel(exercise: TestEnv.catalog.exercises[0], store: try TestEnv.store(),
+                            now: { TestEnv.d(2026, 10, 2, 22) }, onFinish: { _ in calls += 1 })
+        m.play()
+        m.tick()
+        m.pause()
+        #expect(calls == 0)
+    }
 }

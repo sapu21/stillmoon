@@ -66,7 +66,10 @@ struct MainTabs: View {
             journey.refresh()
         }) { request in
             if let exercise = env.catalog.exercise(id: request.exerciseID) {
-                PlayerView(exercise: exercise, store: env.store)
+                PlayerView(exercise: exercise, store: env.store) { interval in
+                    guard env.settings.settings.healthConnected else { return }
+                    Task { try? await env.health.saveMindfulSession(start: interval.start, end: interval.end) }
+                }
             } else {
                 ContentUnavailableView("This exercise isn't available", systemImage: "questionmark.circle")
                     .overlay(alignment: .bottom) {

@@ -9,8 +9,8 @@ struct PlayerView: View {
     @State private var model: PlayerModel
     private let theme = Theme.night
 
-    init(exercise: Exercise, store: LocalStore) {
-        _model = State(initialValue: PlayerModel(exercise: exercise, store: store))
+    init(exercise: Exercise, store: LocalStore, onFinish: ((DateInterval) -> Void)? = nil) {
+        _model = State(initialValue: PlayerModel(exercise: exercise, store: store, onFinish: onFinish))
     }
 
     var body: some View {

@@ -10,6 +10,7 @@ final class LaunchTests: XCTestCase {
         app.buttons["Get started"].tap()
         app.buttons["Unwind before bed"].tap()
         app.buttons["Skip for now"].tap()
+        app.buttons["Not now"].tap()
         app.buttons["Continue"].tap()
         app.buttons["Go to Today"].tap()
 
@@ -27,11 +28,32 @@ final class LaunchTests: XCTestCase {
         app.buttons["Get started"].tap()
         app.buttons["Unwind before bed"].tap()
         app.buttons["Skip for now"].tap()
+        app.buttons["Not now"].tap()
         app.buttons["Continue"].tap()
         app.buttons["Start gentle breathing"].tap()
 
         XCTAssertTrue(app.buttons["End exercise"].waitForExistence(timeout: 5))
         app.buttons["End exercise"].tap()
         XCTAssertTrue(app.staticTexts["greeting"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testFakeHealthNightShowsEstimateAndDetail() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-fake-health"]
+        app.launch()
+
+        app.buttons["Get started"].tap()
+        app.buttons["Unwind before bed"].tap()
+        app.buttons["Skip for now"].tap()
+        app.buttons["Connect Apple Health"].tap()
+        app.buttons["Continue"].tap()
+        app.buttons["Go to Today"].tap()
+
+        app.tabBars.buttons["Sleep"].tap()
+        let estimate = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "Apple Watch estimated")).firstMatch
+        XCTAssertTrue(estimate.waitForExistence(timeout: 5))
+        estimate.tap()
+        XCTAssertTrue(app.staticTexts["Stages are estimates from your device, not measurements."].waitForExistence(timeout: 5))
     }
 }

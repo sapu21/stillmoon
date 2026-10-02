@@ -39,6 +39,17 @@ struct OnboardingView: View {
                 DatePicker("Wake time", selection: clock($model.wakeTime), displayedComponents: .hourAndMinute)
                 primary("Continue") { model.next() }
                 Button("Skip for now") { model.skipSchedule() }
+            case .health:
+                Text("Add your watch's estimates?").font(.title.weight(.semibold))
+                Text("Stillmoon can read sleep from Apple Health and save finished exercises as Mindful Minutes. Your sleep data stays on this iPhone.")
+                    .foregroundStyle(theme.secondaryText)
+                primary("Connect Apple Health") {
+                    Task {
+                        _ = await env.connectHealth()
+                        model.next()
+                    }
+                }
+                Button("Not now") { model.next() }
             case .privacy:
                 Text("Your nights stay yours").font(.title.weight(.semibold))
                 VStack(alignment: .leading, spacing: 12) {

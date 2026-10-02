@@ -16,6 +16,18 @@ struct SettingsView: View {
                     }
                 }
                 Section {
+                    if env.settings.settings.healthConnected {
+                        LabeledContent("Apple Health", value: "Connected")
+                        Button("Stop reading Apple Health") { env.settings.settings.healthConnected = false }
+                    } else {
+                        Button("Connect Apple Health") { Task { _ = await env.connectHealth() } }
+                    }
+                } header: {
+                    Text("Apple Health")
+                } footer: {
+                    Text("To change what Stillmoon can read or write, open the Health app, then Sharing, Apps, Stillmoon.")
+                }
+                Section {
                     Toggle("Use my bedtime and wake time", isOn: Binding(
                         get: { settings.settings.bedtime != nil },
                         set: { on in

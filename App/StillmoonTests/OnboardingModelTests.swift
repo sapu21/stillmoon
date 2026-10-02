@@ -15,6 +15,8 @@ struct OnboardingModelTests {
         m.bedtime = ClockTime(hour: 23, minute: 30)
         m.wakeTime = ClockTime(hour: 6, minute: 45)
         m.next()
+        #expect(m.step == .health)
+        m.next()
         #expect(m.step == .privacy)
         m.next()
         #expect(m.step == .firstExercise)
@@ -31,7 +33,7 @@ struct OnboardingModelTests {
         m.next()
         m.chooseGoal(.unwind)
         m.skipSchedule()
-        #expect(m.step == .privacy)
+        #expect(m.step == .health)
         #expect(settings.settings.bedtime == nil)
         #expect(settings.settings.wakeTime == nil)
     }
