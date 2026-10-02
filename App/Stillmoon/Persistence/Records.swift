@@ -150,8 +150,10 @@ import StillmoonCore
         correctionRaw = event.correction.rawValue
     }
 
-    var value: SoundEvent {
-        SoundEvent(id: id, label: SoundLabel(rawValue: labelRaw) ?? .snoringLike, at: at, confidence: confidence,
+    /// Nil when the stored label is unknown (never invents a label).
+    var value: SoundEvent? {
+        guard let label = SoundLabel(rawValue: labelRaw) else { return nil }
+        return SoundEvent(id: id, label: label, at: at, confidence: confidence,
                    correction: SoundCorrection(rawValue: correctionRaw) ?? .none)
     }
 }

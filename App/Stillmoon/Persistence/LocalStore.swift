@@ -53,10 +53,10 @@ enum StillmoonSchema {
     private static func configuration(_ name: String, _ models: [any PersistentModel.Type],
                                       inMemory: Bool, directory: URL?) -> ModelConfiguration {
         let schema = Schema(models)
-        if inMemory || directory == nil {
+        guard !inMemory, let directory else {
             return ModelConfiguration(name, schema: schema, isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none)
         }
-        return ModelConfiguration(name, schema: schema, url: directory!.appendingPathComponent("\(name).store"),
+        return ModelConfiguration(name, schema: schema, url: directory.appendingPathComponent("\(name).store"),
                                   allowsSave: true, cloudKitDatabase: .none)
     }
 }
@@ -177,6 +177,10 @@ final class LocalStore {
     // MARK: Sound sessions
 
     func startSoundSession(at date: Date) -> UUID {
+        let owner = ownerID
+        for open in fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.endedAt == nil })) {
+            open.endedAt = open.startedAt
+        }
         let record = SoundSessionRecord(ownerID: ownerID, startedAt: date)
         context.insert(record)
         save()
@@ -199,7 +203,8 @@ final class LocalStore {
 
     func openSessionID() -> UUID? {
         let owner = ownerID
-        return fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.endedAt == nil })).first?.id
+        return fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.endedAt == nil },
+                                         sortBy: [SortDescriptor(\.startedAt, order: .reverse)])).first?.id
     }
 
     /// Ends sessions left open by a crash or force quit, at their last event (or start) time.
@@ -228,7 +233,7 @@ final class LocalStore {
         let descriptor = FetchDescriptor<SoundEventRecord>(
             predicate: #Predicate { $0.ownerID == owner && $0.at >= start && $0.at < end },
             sortBy: [SortDescriptor(\.at)])
-        return fetch(descriptor).map(\.value)
+        return fetch(descriptor).compactMap(\.value)
     }
 
     func setCorrection(_ correction: SoundCorrection, forEvent id: UUID) {
