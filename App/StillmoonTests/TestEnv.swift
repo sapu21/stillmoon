@@ -24,4 +24,32 @@ enum TestEnv {
     static func store(owner: String = "user-a", container: ModelContainer? = nil) throws -> LocalStore {
         LocalStore(container: try container ?? Self.container(), ownerID: owner)
     }
+
+    static func settings() -> SettingsStore {
+        SettingsStore(defaults: UserDefaults(suiteName: "test-\(UUID().uuidString)")!)
+    }
+
+    static func exercise(_ id: String, _ title: String, _ category: ExerciseCategory, _ tags: Set<ContentTag>,
+                         steps: [ExerciseStep] = [ExerciseStep(text: "Breathe in", seconds: 3), ExerciseStep(text: "Breathe out", seconds: 2)]) -> Exercise {
+        Exercise(id: id, title: title, summary: "\(title) summary.", category: category, format: .text, tags: tags,
+                 steps: steps, audioFile: nil, tier: .free, techniqueSource: "Test technique", licence: "Original")
+    }
+
+    static func article(_ id: String, _ title: String, _ tags: Set<ContentTag>) -> Article {
+        Article(id: id, title: title, summary: "\(title) summary.", body: "First paragraph.\n\nSecond paragraph.",
+                tags: tags, sources: [SourceLink(title: "CDC", url: URL(string: "https://www.cdc.gov/sleep/about/")!)],
+                reviewedOn: "2026-10-02", nextReview: "2027-04-02", tier: .free)
+    }
+
+    static let catalog = ContentCatalog(
+        exercises: [
+            exercise("breath", "Gentle breathing", .windDown, [.relaxation]),
+            exercise("scan", "Body scan", .windDown, [.relaxation]),
+            exercise("awake", "Five quiet minutes", .awakeAtNight, [.awakeAtNight]),
+            exercise("morning", "Morning reflection", .morningReset, [.morning]),
+        ],
+        articles: [
+            article("steady-bedtime", "Keeping a steady bedtime", [.routine]),
+            article("talk-to-a-doctor", "When to talk to a doctor", [.sleepData]),
+        ])
 }

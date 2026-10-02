@@ -1,0 +1,116 @@
+{
+  "exercises": [
+    {
+      "id": "gentle-breathing",
+      "title": "Gentle breathing",
+      "summary": "Slow your breathing to a comfortable, steady rhythm.",
+      "category": "windDown",
+      "format": "text",
+      "tags": ["relaxation"],
+      "steps": [
+        { "text": "Settle into a comfortable position. Let your shoulders drop.", "seconds": 40 },
+        { "text": "Breathe in through your nose for a count of four.", "seconds": 50 },
+        { "text": "Breathe out slowly for a count of six. Let the out-breath be longer.", "seconds": 60 },
+        { "text": "Keep this rhythm. If your mind wanders, return to counting.", "seconds": 90 },
+        { "text": "Let your breathing return to its own pace. Notice how you feel.", "seconds": 60 }
+      ],
+      "audioFile": null,
+      "tier": "free",
+      "techniqueSource": "Paced breathing with a longer exhale (NCCIH relaxation techniques)",
+      "licence": "Original script"
+    },
+    {
+      "id": "body-scan",
+      "title": "Body scan",
+      "summary": "Move your attention slowly from your feet to your head.",
+      "category": "windDown",
+      "format": "text",
+      "tags": ["relaxation"],
+      "steps": [
+        { "text": "Lie down and let the bed take your weight.", "seconds": 45 },
+        { "text": "Notice your feet and ankles. Let them soften.", "seconds": 75 },
+        { "text": "Move your attention to your legs and hips.", "seconds": 75 },
+        { "text": "Notice your belly and chest rising and falling.", "seconds": 75 },
+        { "text": "Soften your hands, arms and shoulders.", "seconds": 75 },
+        { "text": "Relax your jaw, your eyes and your forehead.", "seconds": 75 },
+        { "text": "Rest here, aware of your whole body.", "seconds": 60 }
+      ],
+      "audioFile": null,
+      "tier": "free",
+      "techniqueSource": "Body scan (VA Whole Health mindfulness practice)",
+      "licence": "Original script"
+    },
+    {
+      "id": "five-quiet-minutes",
+      "title": "Five quiet minutes",
+      "summary": "For when you wake in the night. No need to fall asleep; just rest.",
+      "category": "awakeAtNight",
+      "format": "text",
+      "tags": ["awakeAtNight", "relaxation"],
+      "steps": [
+        { "text": "You're awake, and that's okay. There's nothing you need to do.", "seconds": 45 },
+        { "text": "Breathe out slowly, a little longer than you breathe in.", "seconds": 75 },
+        { "text": "Notice three things you can feel: the pillow, the blanket, your breath.", "seconds": 75 },
+        { "text": "If thoughts come, let them pass like clouds.", "seconds": 60 },
+        { "text": "Rest your eyes. Resting is enough.", "seconds": 45 }
+      ],
+      "audioFile": null,
+      "tier": "free",
+      "techniqueSource": "Grounding and paced breathing (NCCIH relaxation techniques)",
+      "licence": "Original script"
+    },
+    {
+      "id": "morning-reflection",
+      "title": "Morning reflection",
+      "summary": "A short check-in with yourself to start the day gently.",
+      "category": "morningReset",
+      "format": "text",
+      "tags": ["morning"],
+      "steps": [
+        { "text": "Before you reach for your phone's other apps, take three slow breaths.", "seconds": 30 },
+        { "text": "Notice how your body feels right now, without judging it.", "seconds": 45 },
+        { "text": "Pick one small thing you'd like to do for yourself today.", "seconds": 45 },
+        { "text": "Open a curtain or step outside for a minute of daylight if you can.", "seconds": 60 }
+      ],
+      "audioFile": null,
+      "tier": "free",
+      "techniqueSource": "Morning light and brief reflection (CDC sleep guidance)",
+      "licence": "Original script"
+    }
+  ],
+  "articles": [
+    {
+      "id": "steady-bedtime",
+      "title": "Why a steady bedtime helps",
+      "summary": "Going to bed and getting up at similar times can make sleep feel easier.",
+      "body": "Your body keeps an internal clock. When bedtimes and wake times move around a lot, that clock has to keep adjusting.\n\nTry keeping your wake time within about an hour each day, including weekends. A steady morning tends to make evenings steadier too.\n\nIf a night goes badly, you don't need to make it up by sleeping in. Get up at your usual time and be gentle with yourself.",
+      "tags": ["routine"],
+      "sources": [{ "title": "CDC: About Sleep", "url": "https://www.cdc.gov/sleep/about/" }],
+      "reviewedOn": "2026-10-02",
+      "nextReview": "2027-04-02",
+      "tier": "free"
+    },
+    {
+      "id": "what-your-watch-estimates",
+      "title": "What your watch is estimating",
+      "summary": "Sleep stages from a wearable are estimates, not measurements.",
+      "body": "Watches and rings estimate sleep stages from movement and heart rate. They are useful for spotting patterns over many nights, but a single night's numbers can be off.\n\nHow you feel in the morning matters as much as any chart. Stillmoon always shows your own check-in next to what a device estimated.",
+      "tags": ["sleepData"],
+      "sources": [{ "title": "NHLBI: Stages of Sleep", "url": "https://www.nhlbi.nih.gov/health/sleep/stages-of-sleep" }],
+      "reviewedOn": "2026-10-02",
+      "nextReview": "2027-04-02",
+      "tier": "free"
+    },
+    {
+      "id": "talk-to-a-doctor",
+      "title": "When to talk to a doctor",
+      "summary": "Some sleep difficulties are worth mentioning to a healthcare professional.",
+      "body": "If you've had trouble falling or staying asleep most nights for several weeks, it can help to talk with a doctor or another qualified healthcare professional.\n\nIt's also worth mentioning loud, frequent snoring, or feeling very sleepy during the day even after a full night in bed.\n\nStillmoon can't diagnose sleep conditions. A professional can look at the whole picture with you.",
+      "tags": ["sleepData"],
+      "sources": [{ "title": "NHLBI: Insomnia", "url": "https://www.nhlbi.nih.gov/health/insomnia" }],
+      "reviewedOn": "2026-10-02",
+      "nextReview": "2027-04-02",
+      "tier": "free"
+    }
+  ]
+}
