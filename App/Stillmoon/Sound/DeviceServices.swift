@@ -32,9 +32,10 @@ protocol BatteryReading: AnyObject {
 }
 
 final class DeviceBattery: BatteryReading {
+    init() { UIDevice.current.isBatteryMonitoringEnabled = true }
+
     func read() -> BatteryState {
         let device = UIDevice.current
-        device.isBatteryMonitoringEnabled = true
         let level = device.batteryLevel < 0 ? nil : Double(device.batteryLevel)
         let charging = device.batteryState == .charging || device.batteryState == .full
         return BatteryState(level: level, charging: charging)
