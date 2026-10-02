@@ -27,13 +27,14 @@ final class SoundAnalysisDetector: SoundDetecting {
         self.onObservation = onObservation
         self.onFailure = onFailure
         do {
+            let session = AVAudioSession.sharedInstance()
             if !resuming {
-                let session = AVAudioSession.sharedInstance()
                 // Mixes with other audio: people may fall asleep to a podcast or white noise from another app.
                 try session.setCategory(.playAndRecord, mode: .measurement,
                                         options: [.mixWithOthers, .allowBluetooth])
-                try session.setActive(true)
             }
+            // Always activate: iOS deactivates the session during a real call interruption.
+            try session.setActive(true)
             try buildAndStartEngine()
         } catch {
             teardown()
