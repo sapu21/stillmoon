@@ -41,13 +41,18 @@ struct NightRowView: View {
     @Environment(\.theme) private var theme
     let row: NightRow
 
+    private var bedtime: String { row.entry.bedtime.formatted(date: .omitted, time: .shortened) }
+    private var wake: String { row.entry.wakeTime.formatted(date: .omitted, time: .shortened) }
+    private var duration: String { Format.duration(minutes: row.entry.asleepMinutes) }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(row.entry.wakeTime, format: .dateTime.weekday(.wide).month().day())
                 .font(.headline)
-            Text("You recorded \(row.entry.bedtime.formatted(date: .omitted, time: .shortened)) to \(row.entry.wakeTime.formatted(date: .omitted, time: .shortened)) · \(Format.duration(minutes: row.entry.asleepMinutes)) in bed")
+            Text("You recorded \(bedtime) to \(wake) · \(duration) in bed")
                 .font(.subheadline)
                 .foregroundStyle(theme.secondaryText)
+                .accessibilityLabel("You recorded \(bedtime) to \(wake), \(duration) in bed")
             if let checkIn = row.checkIn {
                 Text("You felt \(checkIn.restedness) of 5 rested")
                     .font(.subheadline)
@@ -60,5 +65,6 @@ struct NightRowView: View {
         }
         .foregroundStyle(theme.text)
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
     }
 }

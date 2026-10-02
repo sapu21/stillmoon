@@ -29,6 +29,8 @@ struct CheckInSheet: View {
                         ForEach(1...5, id: \.self) { Text("\($0)").tag($0) }
                     }
                     .pickerStyle(.segmented)
+                    .accessibilityValue("\(restedness) of 5")
+                    .accessibilityHint("1 means not at all rested, 5 means very rested")
                     HStack {
                         Text("Not at all")
                         Spacer()
