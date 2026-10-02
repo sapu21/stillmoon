@@ -2,9 +2,12 @@ import SwiftUI
 
 @main
 struct StillmoonApp: App {
+    @State private var env = AppEnvironment.live()
+
     var body: some Scene {
         WindowGroup {
-            Text("Stillmoon")
+            RootView()
+                .environment(env)
         }
     }
 }
