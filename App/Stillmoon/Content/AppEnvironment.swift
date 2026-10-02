@@ -21,9 +21,9 @@ final class FlagsBox {
     let catalog: ContentCatalog
     let health: HealthDataSource
     @ObservationIgnored private let flagsBox: FlagsBox
-    var flags: FeatureFlags {
-        get { flagsBox.value }
-        set { flagsBox.value = newValue }
+    /// Observed for views; mirrored into the box the sound controller reads.
+    var flags = FeatureFlags() {
+        didSet { flagsBox.value = flags }
     }
     let sound: SoundSessionController
     /// True while a sound-detection session runs.

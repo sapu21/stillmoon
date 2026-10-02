@@ -3,6 +3,8 @@ import Testing
 import StillmoonCore
 @testable import Stillmoon
 
+private nonisolated final class Fired: @unchecked Sendable { nonisolated(unsafe) var value = false }
+
 struct SoundSessionControllerTests {
     let now = TestEnv.d(2026, 10, 1, 23)
 
@@ -97,6 +99,14 @@ struct SoundSessionControllerTests {
         #expect(store.openSessionID() != nil)
         c.stop()
         #expect(store.openSessionID() == nil)
+    }
+
+    @Test func flagsChangeIsObserved() throws {
+        let env = AppEnvironment(store: try TestEnv.store(), settings: TestEnv.settings(), catalog: .empty)
+        let fired = Fired()
+        withObservationTracking({ _ = env.flags }, onChange: { fired.value = true })
+        env.flags.soundDetection = false
+        #expect(fired.value)
     }
 
     @Test func flagChangeOnEnvironmentDisablesSound() throws {
