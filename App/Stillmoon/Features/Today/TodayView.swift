@@ -4,6 +4,7 @@ import StillmoonCore
 struct TodayView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.theme) private var theme
+    @Environment(\.scenePhase) private var scenePhase
     let model: TodayModel
     @State private var showingCheckIn = false
     @State private var showingJournal = false
@@ -16,6 +17,7 @@ struct TodayView: View {
                 Text(model.greeting)
                     .font(.largeTitle.weight(.semibold))
                     .accessibilityIdentifier("greeting")
+                    .accessibilityAddTraits(.isHeader)
                 if theme.isNight && !showEverythingAtNight {
                     nightContent
                 } else {
@@ -42,6 +44,7 @@ struct TodayView: View {
             SettingsView()
         }
         .onAppear { model.refresh() }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { model.refresh() } }
     }
 
     // MARK: Night: one card, large controls, nothing to track (PRD §7).
@@ -62,6 +65,8 @@ struct TodayView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .tint(theme.accent)
+                } else {
+                    Text("Breathe out slowly, a little longer than you breathe in. Resting is enough.")
                 }
             }
         }
@@ -89,7 +94,7 @@ struct TodayView: View {
                     HStack {
                         Text("Suggested for you").font(.caption).foregroundStyle(theme.secondaryText)
                         Spacer()
-                        feedbackMenu(first.itemID)
+                        feedbackMenu(first.itemID, title: first.title)
                     }
                     NavigationLink(value: first.route) {
                         Text(first.title).font(.title3.weight(.semibold))
@@ -109,7 +114,7 @@ struct TodayView: View {
                                 Text(rec.reason).font(.caption).foregroundStyle(theme.secondaryText)
                             }
                             Spacer()
-                            feedbackMenu(rec.itemID)
+                            feedbackMenu(rec.itemID, title: rec.title)
                         }
                     }
                 }
@@ -123,6 +128,8 @@ struct TodayView: View {
                     ProgressView(value: Double(min(model.progress.windDownsThisWeek, model.progress.weeklyGoal)),
                                  total: Double(model.progress.weeklyGoal))
                         .tint(theme.accent)
+                        .accessibilityLabel("Wind-downs this week")
+                        .accessibilityValue("\(model.progress.windDownsThisWeek) of \(model.progress.weeklyGoal)")
                 }
             }
         }
@@ -163,14 +170,16 @@ struct TodayView: View {
         }
     }
 
-    private func feedbackMenu(_ itemID: String) -> some View {
+    private func feedbackMenu(_ itemID: String, title: String) -> some View {
         Menu {
             Button("Helpful") { model.rate(itemID, .helpful) }
             Button("Not relevant") { model.rate(itemID, .irrelevant) }
             Button("Don't show this again", role: .destructive) { model.rate(itemID, .unwanted) }
         } label: {
             Image(systemName: "ellipsis.circle")
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
-        .accessibilityLabel("Rate this suggestion")
+        .accessibilityLabel("Rate \(title)")
     }
 }
