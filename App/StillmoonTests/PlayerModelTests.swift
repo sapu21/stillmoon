@@ -62,4 +62,16 @@ struct PlayerModelTests {
         m.pause()
         #expect(store.completions().isEmpty)
     }
+
+    @Test func pausingOnLastStepThenTickingRecordsNothing() throws {
+        let (m, store) = try make()
+        m.play()
+        m.skipStep()
+        m.tick()
+        #expect(m.remainingSeconds == 1)
+        m.pause()
+        m.tick()
+        #expect(!m.isComplete)
+        #expect(store.completions().isEmpty)
+    }
 }

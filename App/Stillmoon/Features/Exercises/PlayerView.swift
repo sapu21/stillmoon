@@ -4,6 +4,7 @@ import UIKit
 /// Always dim (PRD §2 night interaction): large controls, minimal text, no reward animation.
 struct PlayerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model: PlayerModel
     private let theme = Theme.night
 
@@ -14,7 +15,7 @@ struct PlayerView: View {
     var body: some View {
         VStack(spacing: 32) {
             HStack {
-                Button { dismiss() } label: {
+                Button { model.pause(); dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.title2)
                         .frame(width: 44, height: 44)
@@ -66,14 +67,21 @@ struct PlayerView: View {
         .preferredColorScheme(.dark)
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1))
+                do { try await Task.sleep(for: .seconds(1)) } catch { break }
+                guard !Task.isCancelled else { break }
                 model.tick()
             }
         }
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
-            model.play()
+            if model.stepIndex == 0 && model.elapsedInStep == 0 && !model.isComplete { model.play() }
         }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { model.pause() }
+        }
+        .onDisappear {
+            model.pause()
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
     }
 }
