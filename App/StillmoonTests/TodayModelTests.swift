@@ -145,4 +145,17 @@ struct TodayModelTests {
         #expect(m.windDownSuggestion?.itemID == "breath")
         #expect(m.windDownSuggestion?.reason == RecommendationEngine.Reason.goal)
     }
+
+    @Test func snoringNoteShowsOnceAfterFiveNights() throws {
+        let (m, store) = try make()
+        let s = store.startSoundSession(at: TestEnv.d(2026, 9, 26, 23))
+        for day in 26...30 {
+            let e = SoundEvent(label: .snoringLike, at: TestEnv.d(2026, 9, day, 23, 30), confidence: 0.8, correction: .wasMe)
+            store.addSoundEvents([e], sessionID: s)
+        }
+        m.refresh()
+        #expect(m.showsSnoringNote)
+        m.dismissSnoringNote()
+        #expect(!m.showsSnoringNote)
+    }
 }

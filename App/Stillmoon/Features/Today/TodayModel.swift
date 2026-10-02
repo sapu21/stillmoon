@@ -33,6 +33,7 @@ struct ResolvedRecommendation: Identifiable, Hashable {
     private(set) var progress = ProgressSummary(windDownsThisWeek: 0, weeklyGoal: 3, goalMet: false,
                                                 totalWindDowns: 0, journeyStage: 0)
     private(set) var showsDifficultyCard = false
+    private(set) var showsSnoringNote = false
 
     init(store: LocalStore, settings: SettingsStore, catalog: ContentCatalog,
          health: HealthDataSource = FakeHealthSource(),
@@ -141,6 +142,15 @@ struct ResolvedRecommendation: Identifiable, Hashable {
         progress = ProgressCalculator.summary(completions: store.completions(), weeklyGoal: settings.settings.weeklyGoal,
                                               now: now, calendar: calendar)
         showsDifficultyCard = ReferralSignals.showsDifficultyCard(todayCheckIn: todayCheckIn)
+        let eightDaysAgo = calendar.date(byAdding: .day, value: -8, to: now)!
+        showsSnoringNote = ReferralSignals.showsSnoringNote(events: store.soundEvents(from: eightDaysAgo, to: now),
+                                                            now: now, calendar: calendar,
+                                                            alreadyShown: settings.settings.snoringNoteShown)
+    }
+
+    func dismissSnoringNote() {
+        settings.settings.snoringNoteShown = true
+        refresh()
     }
 
     /// One check-in per day: a second save today updates the first.

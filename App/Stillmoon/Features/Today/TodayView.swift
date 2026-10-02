@@ -126,6 +126,15 @@ struct TodayView: View {
                 }
             }
         }
+        if model.showsSnoringNote {
+            Card {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Frequent loud snoring is worth mentioning to a doctor.")
+                    NavigationLink("When to talk to a doctor", value: Route.article(TodayModel.doctorArticleID))
+                    Button("Dismiss") { model.dismissSnoringNote() }
+                }
+            }
+        }
         if let first = model.recommendations.first {
             Card {
                 VStack(alignment: .leading, spacing: 8) {

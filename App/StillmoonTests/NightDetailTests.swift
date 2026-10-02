@@ -49,4 +49,13 @@ struct NightDetailTests {
         ]
         #expect(NightSummary.incompleteNote(report(samples: gappy)) != nil)
     }
+
+    @Test func soundCopy() {
+        #expect(SoundLabel.speechLike.title == "Speech-like sound")
+        #expect(SoundCorrection.someoneElse.title == "Someone else")
+        #expect(SoundCorrection.none.title == nil)
+        #expect(NightSummary.soundCountLine(0) == nil)
+        #expect(NightSummary.soundCountLine(1) == "1 sound noted")
+        #expect(NightSummary.soundCountLine(2) == "2 sounds noted")
+    }
 }

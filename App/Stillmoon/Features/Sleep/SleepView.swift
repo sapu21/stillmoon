@@ -39,7 +39,10 @@ struct SleepView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await model.refresh() } }
         }
-        .navigationDestination(for: NightRow.self) { NightDetailView(row: $0) }
+        .navigationDestination(for: NightRow.self) { row in
+            NightDetailView(row: model.rows.first { $0.morning == row.morning } ?? row,
+                            onCorrect: { event, c in Task { await model.correct(event, as: c) } })
+        }
         .scrollContentBackground(.hidden)
         .background(theme.background.ignoresSafeArea())
         .navigationTitle("Sleep")
@@ -75,6 +78,11 @@ struct NightRowView: View {
             }
             if let checkIn = row.checkIn {
                 Text("You felt \(checkIn.restedness) of 5 rested")
+                    .font(.subheadline)
+                    .foregroundStyle(theme.secondaryText)
+            }
+            if let line = NightSummary.soundCountLine(row.soundEvents.count) {
+                Text(line)
                     .font(.subheadline)
                     .foregroundStyle(theme.secondaryText)
             }

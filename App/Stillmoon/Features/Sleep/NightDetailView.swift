@@ -2,7 +2,36 @@ import Charts
 import SwiftUI
 import StillmoonCore
 
+extension SoundLabel {
+    var title: String {
+        switch self {
+        case .snoringLike: "Snoring-like sound"
+        case .speechLike: "Speech-like sound"
+        case .coughLike: "Cough-like sound"
+        }
+    }
+}
+
+extension SoundCorrection {
+    var title: String? {
+        switch self {
+        case .none: nil
+        case .wasMe: "This was me"
+        case .someoneElse: "Someone else"
+        case .incorrect: "Not correct"
+        }
+    }
+}
+
 enum NightSummary {
+    static func soundCountLine(_ count: Int) -> String? {
+        switch count {
+        case 0: nil
+        case 1: "1 sound noted"
+        default: "\(count) sounds noted"
+        }
+    }
+
     /// Top to bottom on the chart and in the list.
     static let stageOrder: [SleepStage] = [.awake, .rem, .core, .deep]
 
@@ -37,6 +66,7 @@ enum NightSummary {
 struct NightDetailView: View {
     @Environment(\.theme) private var theme
     let row: NightRow
+    var onCorrect: (SoundEvent, SoundCorrection) -> Void = { _, _ in }
 
     var body: some View {
         ScrollView {
@@ -85,6 +115,39 @@ struct NightDetailView: View {
                                     .font(.footnote)
                                     .foregroundStyle(theme.secondaryText)
                             }
+                        }
+                    }
+                }
+                if !row.soundEvents.isEmpty {
+                    Card {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Sounds noticed").font(.headline)
+                            SoundLane(events: row.soundEvents)
+                            ForEach(row.soundEvents, id: \.id) { event in
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text("A \(event.label.title.lowercased()) was detected")
+                                        Text(event.at.formatted(date: .omitted, time: .shortened)
+                                             + (event.correction.title.map { " · \($0)" } ?? ""))
+                                            .font(.footnote)
+                                            .foregroundStyle(theme.secondaryText)
+                                    }
+                                    Spacer()
+                                    Menu {
+                                        Button("This was me") { onCorrect(event, .wasMe) }
+                                        Button("Someone else") { onCorrect(event, .someoneElse) }
+                                        Button("Not correct") { onCorrect(event, .incorrect) }
+                                    } label: {
+                                        Image(systemName: "ellipsis.circle")
+                                            .frame(width: 44, height: 44)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .accessibilityLabel("Correct this \(event.label.title.lowercased())")
+                                }
+                            }
+                            Text("Sounds are guesses from a classifier. They can't tell who made a sound or how anyone felt.")
+                                .font(.footnote)
+                                .foregroundStyle(theme.secondaryText)
                         }
                     }
                 }
@@ -158,5 +221,22 @@ struct StageChart: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Sleep stage timeline")
         .accessibilityValue(description)
+    }
+}
+
+/// Sound events as points on a small separate chart, never part of the stage chart.
+struct SoundLane: View {
+    @Environment(\.theme) private var theme
+    let events: [SoundEvent]
+
+    var body: some View {
+        Chart(events, id: \.id) { event in
+            PointMark(x: .value("Time", event.at), y: .value("Sound", event.label.title))
+                .foregroundStyle(theme.accent2)
+        }
+        .chartXAxis { AxisMarks(values: .stride(by: .hour, count: 2)) { _ in AxisValueLabel(format: .dateTime.hour()) } }
+        .frame(height: 90)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Sounds noticed during the night, listed below")
     }
 }

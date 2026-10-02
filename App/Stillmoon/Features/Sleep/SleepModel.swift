@@ -8,7 +8,16 @@ struct NightRow: Identifiable, Hashable {
     let report: NightReport?
     let entry: JournalEntry?
     let checkIn: CheckIn?
+    let soundEvents: [SoundEvent]
     var id: Date { morning }
+
+    init(morning: Date, report: NightReport?, entry: JournalEntry?, checkIn: CheckIn?, soundEvents: [SoundEvent] = []) {
+        self.morning = morning
+        self.report = report
+        self.entry = entry
+        self.checkIn = checkIn
+        self.soundEvents = soundEvents
+    }
 }
 
 @Observable final class SleepModel {
@@ -67,13 +76,34 @@ struct NightRow: Identifiable, Hashable {
 
         let entriesByMorning = Dictionary(grouping: store.journalEntries()) { calendar.startOfDay(for: $0.wakeTime) }
         let checkIns = store.checkIns()
-        let mornings = Set(reports.keys).union(entriesByMorning.keys)
+        let oldestMorning = calendar.date(byAdding: .day, value: -(Self.historyDays - 1), to: today)!
+        let windows: [(morning: Date, window: NightWindow)] = (0..<Self.historyDays).map { offset in
+            let morning = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -offset, to: today)!)
+            return (morning, NightWindow.forMorning(of: morning, calendar: calendar))
+        }
+        var eventsByMorning: [Date: [SoundEvent]] = [:]
+        let allEvents = store.soundEvents(from: NightWindow.forMorning(of: oldestMorning, calendar: calendar).start, to: now)
+        for event in allEvents {
+            if let hit = windows.first(where: { $0.window.start <= event.at && event.at < $0.window.end }) {
+                eventsByMorning[hit.morning, default: []].append(event)
+            } else {
+                let next = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: event.at))!
+                eventsByMorning[next, default: []].append(event)
+            }
+        }
+        let mornings = Set(reports.keys).union(entriesByMorning.keys).union(eventsByMorning.keys)
         rows = mornings.sorted(by: >).map { morning in
             NightRow(morning: morning,
                      report: reports[morning],
                      entry: entriesByMorning[morning]?.first,
-                     checkIn: checkIns.first { calendar.isDate($0.date, inSameDayAs: morning) })
+                     checkIn: checkIns.first { calendar.isDate($0.date, inSameDayAs: morning) },
+                     soundEvents: (eventsByMorning[morning] ?? []).sorted { $0.at < $1.at })
         }
+    }
+
+    func correct(_ event: SoundEvent, as correction: SoundCorrection) async {
+        store.setCorrection(correction, forEvent: event.id)
+        await refresh()
     }
 
     func save(_ entry: JournalEntry) async {

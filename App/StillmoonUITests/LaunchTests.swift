@@ -82,8 +82,6 @@ final class LaunchTests: XCTestCase {
 
         app.tabBars.buttons["Sleep"].tap()
         let row = app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "2 sounds noted")).firstMatch
-        XCTExpectFailure("Sleep row lands in Task 6") {
-            XCTAssertTrue(row.waitForExistence(timeout: 5))
-        }
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
     }
 }
