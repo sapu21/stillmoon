@@ -23,6 +23,13 @@ struct PlayerRequest: Identifiable, Hashable {
         self.catalog = catalog
     }
 
+    /// Deletes this owner's local records and resets preferences, keeping onboarding done.
+    func deleteAllLocalData() {
+        store.deleteAllData()
+        settings.reset()
+        settings.settings.hasOnboarded = true
+    }
+
     /// `-ui-testing` gives an in-memory store and fresh settings.
     static func live(arguments: [String] = ProcessInfo.processInfo.arguments) -> AppEnvironment {
         let uiTesting = arguments.contains("-ui-testing")

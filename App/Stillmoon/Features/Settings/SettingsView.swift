@@ -1,0 +1,74 @@
+import SwiftUI
+import StillmoonCore
+
+struct SettingsView: View {
+    @Environment(AppEnvironment.self) private var env
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmingDelete = false
+
+    var body: some View {
+        @Bindable var settings = env.settings
+        NavigationStack {
+            Form {
+                Section("Your goal") {
+                    Picker("Goal", selection: $settings.settings.goal) {
+                        ForEach(Goal.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }
+                }
+                Section {
+                    Toggle("Use my bedtime and wake time", isOn: Binding(
+                        get: { settings.settings.bedtime != nil },
+                        set: { on in
+                            settings.settings.bedtime = on ? ClockTime(hour: 22, minute: 30) : nil
+                            settings.settings.wakeTime = on ? ClockTime(hour: 7, minute: 0) : nil
+                        }))
+                    if let bedtime = settings.settings.bedtime, let wake = settings.settings.wakeTime {
+                        DatePicker("Bedtime", selection: clockBinding(bedtime) { settings.settings.bedtime = $0 },
+                                   displayedComponents: .hourAndMinute)
+                        DatePicker("Wake time", selection: clockBinding(wake) { settings.settings.wakeTime = $0 },
+                                   displayedComponents: .hourAndMinute)
+                    }
+                } header: {
+                    Text("Schedule")
+                } footer: {
+                    Text("Night mode starts an hour before bedtime. Without times, it runs from 9pm to 7am.")
+                }
+                Section("Progress") {
+                    Stepper("Weekly goal: \(settings.settings.weeklyGoal) wind-downs",
+                            value: $settings.settings.weeklyGoal, in: 1...7)
+                    Toggle("Hide progress", isOn: $settings.settings.hideProgress)
+                }
+                Section("Night mode") {
+                    Picker("Night mode", selection: $settings.settings.nightModeOverride) {
+                        Text("Automatic").tag(NightModeOverride.automatic)
+                        Text("Always on").tag(NightModeOverride.on)
+                        Text("Off").tag(NightModeOverride.off)
+                    }
+                }
+                Section {
+                    Button("Delete all my data on this iPhone", role: .destructive) { confirmingDelete = true }
+                } footer: {
+                    Text("Removes your nights, check-ins, saved items and progress from this iPhone.")
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .confirmationDialog("Delete all your data on this iPhone?", isPresented: $confirmingDelete,
+                                titleVisibility: .visible) {
+                Button("Delete everything", role: .destructive) { env.deleteAllLocalData() }
+            } message: {
+                Text("This can't be undone.")
+            }
+        }
+    }
+
+    private func clockBinding(_ value: ClockTime, set: @escaping (ClockTime) -> Void) -> Binding<Date> {
+        Binding(get: { value.date(on: .now, calendar: .current) },
+                set: { set(ClockTime(of: $0, calendar: .current)) })
+    }
+}
