@@ -53,6 +53,8 @@ enum SoundSessionError: Error, Equatable {
     var isActive: Bool { state != .idle }
     var isAvailable: Bool { flags().soundDetection && settings.settings.soundDetectionEnabled }
 
+    func requestPermission() async -> Bool { await permission.request() }
+
     func needsBatteryWarning() -> Bool {
         let reading = battery.read()
         guard let level = reading.level else { return false }

@@ -56,6 +56,22 @@ struct OnboardingView: View {
                 .disabled(connecting)
                 Button("Not now") { model.next() }
                     .disabled(connecting)
+            case .microphone:
+                Text("Listen for sounds at night?").font(.title.weight(.semibold))
+                Text("During a sleep session you start, Stillmoon can notice snoring-like, speech-like and cough-like sounds. Sound is analyzed on this iPhone and never recorded. You can turn this off at any time.")
+                    .foregroundStyle(theme.secondaryText)
+                primary("Turn on sound detection") {
+                    guard !connecting else { return }
+                    connecting = true
+                    Task {
+                        env.settings.settings.soundDetectionEnabled = await env.sound.requestPermission()
+                        connecting = false
+                        model.next()
+                    }
+                }
+                .disabled(connecting)
+                Button("Not now") { model.next() }
+                    .disabled(connecting)
             case .privacy:
                 Text("Your nights stay yours").font(.title.weight(.semibold))
                 VStack(alignment: .leading, spacing: 12) {

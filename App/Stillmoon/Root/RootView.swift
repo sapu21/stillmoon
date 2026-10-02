@@ -38,6 +38,7 @@ struct MainTabs: View {
 
     var body: some View {
         @Bindable var env = env
+        Group {
         TabView {
             NavigationStack {
                 TodayView(model: today)
@@ -79,6 +80,11 @@ struct MainTabs: View {
                             .padding(.bottom, 48)
                     }
             }
+        }
+        }
+        .fullScreenCover(isPresented: Binding(get: { env.sound.isActive },
+                                              set: { if !$0 { env.sound.stop() } })) {
+            SoundSessionView()
         }
     }
 }

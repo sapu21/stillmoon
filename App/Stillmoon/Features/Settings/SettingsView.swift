@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var confirmingDelete = false
     @State private var connecting = false
+    @State private var soundDenied = false
 
     var body: some View {
         @Bindable var settings = env.settings
@@ -53,6 +54,33 @@ struct SettingsView: View {
                     Text("Schedule")
                 } footer: {
                     Text("Night mode starts an hour before bedtime. Without times, it runs from 9pm to 7am.")
+                }
+                if env.flags.soundDetection {
+                    Section {
+                        Toggle("Listen for sounds during a sleep session", isOn: Binding(
+                            get: { settings.settings.soundDetectionEnabled },
+                            set: { on in
+                                if on {
+                                    Task {
+                                        let granted = await env.sound.requestPermission()
+                                        settings.settings.soundDetectionEnabled = granted
+                                        soundDenied = !granted
+                                    }
+                                } else {
+                                    settings.settings.soundDetectionEnabled = false
+                                    soundDenied = false
+                                }
+                            }))
+                    } header: {
+                        Text("Sound detection")
+                    } footer: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Only during a session you start. Labels, times and confidence are saved on this iPhone; sound is never recorded.")
+                            if soundDenied {
+                                Text("Microphone access is off. You can turn it on in the Settings app, under Privacy & Security, Microphone.")
+                            }
+                        }
+                    }
                 }
                 Section("Progress") {
                     Stepper("Weekly goal: \(settings.settings.weeklyGoal) wind-downs",

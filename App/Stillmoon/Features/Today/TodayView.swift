@@ -81,6 +81,7 @@ struct TodayView: View {
                 } else {
                     Text("Dim the lights and breathe out slowly. Resting is enough.")
                 }
+                if showsSoundStart { SoundStartButton() }
             }
         }
     }
@@ -109,6 +110,10 @@ struct TodayView: View {
     }
 
     // MARK: Day
+
+    private var showsSoundStart: Bool {
+        env.sound.isAvailable && !env.sound.isActive && env.playerRequest == nil
+    }
 
     @ViewBuilder private var dayContent: some View {
         lastNightCard
@@ -166,6 +171,7 @@ struct TodayView: View {
                 }
             }
         }
+        if showsSoundStart { SoundStartButton() }
     }
 
     @ViewBuilder private var lastNightCard: some View {

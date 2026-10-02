@@ -5,7 +5,7 @@ import StillmoonCore
 /// PRD §5 onboarding. Sign-in (Plan 5), Apple Health (Plan 3) and microphone (Plan 4) steps are added later.
 @Observable final class OnboardingModel {
     enum Step: Int, CaseIterable {
-        case welcome, goal, schedule, health, privacy, firstExercise
+        case welcome, goal, schedule, health, microphone, privacy, firstExercise
     }
 
     static let firstExerciseID = "gentle-breathing"
