@@ -15,6 +15,14 @@ struct TodayModelTests {
         return (model, store)
     }
 
+    func makeWithSettings() throws -> (TodayModel, LocalStore, SettingsStore) {
+        let store = try TestEnv.store()
+        let settings = TestEnv.settings()
+        let model = TodayModel(store: store, settings: settings, catalog: TestEnv.catalog,
+                               now: { now }, calendar: TestEnv.cal)
+        return (model, store, settings)
+    }
+
     @Test(arguments: [(6, "Good morning"), (13, "Good afternoon"), (19, "Good evening"), (23, "It's late. Go gently."), (3, "It's late. Go gently.")])
     func greeting(hour: Int, text: String) {
         #expect(TodayModel.greeting(hour: hour) == text)
@@ -76,5 +84,22 @@ struct TodayModelTests {
     @Test func awakeAtNightExerciseComesFromCatalog() throws {
         let (m, _) = try make()
         #expect(m.awakeAtNightExercise?.id == "awake")
+    }
+
+    @Test func nightPhaseBeforeAndAfterBedtime() throws {
+        let (m, _, settings) = try makeWithSettings()
+        settings.settings.bedtime = ClockTime(hour: 23, minute: 0)
+        #expect(m.nightPhase(at: TestEnv.d(2026, 10, 2, 22, 15)) == .windDown)
+        #expect(m.nightPhase(at: TestEnv.d(2026, 10, 2, 23, 30)) == .awake)
+        #expect(m.nightPhase(at: TestEnv.d(2026, 10, 3, 2, 0)) == .awake)
+        settings.settings.bedtime = nil
+        #expect(m.nightPhase(at: TestEnv.d(2026, 10, 2, 21, 30)) == .windDown)
+    }
+
+    @Test func windDownSuggestionPrefersEngineReason() throws {
+        let (m, _) = try make(goal: .unwind)
+        m.refresh()
+        #expect(m.windDownSuggestion?.itemID == "breath")
+        #expect(m.windDownSuggestion?.reason == RecommendationEngine.Reason.goal)
     }
 }

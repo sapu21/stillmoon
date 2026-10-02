@@ -15,19 +15,40 @@ struct AppSettings: Codable, Equatable {
     var hideProgress = false
     var nightModeOverride: NightModeOverride = .automatic
     var snoringNoteShown = false
+
+    enum CodingKeys: String, CodingKey {
+        case goal, bedtime, wakeTime, weeklyGoal, hasOnboarded, hideProgress, nightModeOverride, snoringNoteShown
+    }
+
+    init() {}
+
+    /// Tolerates payloads written by older versions: missing keys fall back to defaults.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        goal = try c.decodeIfPresent(Goal.self, forKey: .goal) ?? .unwind
+        bedtime = try c.decodeIfPresent(ClockTime.self, forKey: .bedtime)
+        wakeTime = try c.decodeIfPresent(ClockTime.self, forKey: .wakeTime)
+        weeklyGoal = try c.decodeIfPresent(Int.self, forKey: .weeklyGoal) ?? 3
+        hasOnboarded = try c.decodeIfPresent(Bool.self, forKey: .hasOnboarded) ?? false
+        hideProgress = try c.decodeIfPresent(Bool.self, forKey: .hideProgress) ?? false
+        nightModeOverride = try c.decodeIfPresent(NightModeOverride.self, forKey: .nightModeOverride) ?? .automatic
+        snoringNoteShown = try c.decodeIfPresent(Bool.self, forKey: .snoringNoteShown) ?? false
+    }
 }
 
 @Observable final class SettingsStore {
-    static let key = "settings.v1"
+    static let keyPrefix = "settings.v1."
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let key: String
 
     var settings: AppSettings {
         didSet { persist() }
     }
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, ownerID: String = LocalOwner.id) {
         self.defaults = defaults
-        if let data = defaults.data(forKey: Self.key),
+        self.key = Self.keyPrefix + ownerID
+        if let data = defaults.data(forKey: key),
            let stored = try? JSONDecoder().decode(AppSettings.self, from: data) {
             settings = stored
         } else {
@@ -54,12 +75,12 @@ struct AppSettings: Codable, Equatable {
 
     private func persist() {
         guard let data = try? JSONEncoder().encode(settings) else { return }
-        defaults.set(data, forKey: Self.key)
+        defaults.set(data, forKey: key)
     }
 }
 
 extension ClockTime {
     func date(on day: Date, calendar: Calendar) -> Date {
-        calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day)!
+        calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day) ?? day
     }
 }

@@ -7,7 +7,8 @@ struct JournalEntry: Identifiable, Hashable {
     var wakeTime: Date
     var note: String?
 
-    var asleepMinutes: Int { Int(wakeTime.timeIntervalSince(bedtime) / 60) }
+    /// Wake time minus bedtime. Not a measure of sleep.
+    var inBedMinutes: Int { Int(wakeTime.timeIntervalSince(bedtime) / 60) }
 
     /// nil when the entry can be saved, otherwise a message for the form.
     func validationMessage() -> String? {

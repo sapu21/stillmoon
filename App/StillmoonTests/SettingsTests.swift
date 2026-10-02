@@ -48,4 +48,25 @@ struct SettingsTests {
         let date = ClockTime(hour: 22, minute: 30).date(on: TestEnv.d(2026, 10, 2, 9), calendar: TestEnv.cal)
         #expect(date == TestEnv.d(2026, 10, 2, 22, 30))
     }
+
+    @Test func decodesOlderPayloadWithMissingKeys() throws {
+        let defaults = freshDefaults()
+        let data = Data(#"{"goal":"nightWaking","hasOnboarded":true}"#.utf8)
+        defaults.set(data, forKey: "\(SettingsStore.keyPrefix)\(LocalOwner.id)")
+        let s = SettingsStore(defaults: defaults).settings
+        #expect(s.goal == .nightWaking)
+        #expect(s.hasOnboarded)
+        #expect(s.weeklyGoal == 3)
+        #expect(s.nightModeOverride == .automatic)
+    }
+
+    @Test func ownersHaveSeparateSettings() {
+        let defaults = freshDefaults()
+        let a = SettingsStore(defaults: defaults, ownerID: "a")
+        let b = SettingsStore(defaults: defaults, ownerID: "b")
+        a.settings.goal = .nightWaking
+        #expect(b.settings.goal == .unwind)
+        #expect(SettingsStore(defaults: defaults, ownerID: "b").settings.goal == .unwind)
+        #expect(SettingsStore(defaults: defaults, ownerID: "a").settings.goal == .nightWaking)
+    }
 }

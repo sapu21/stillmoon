@@ -13,7 +13,7 @@ import StillmoonCore
     @ObservationIgnored private let settings: SettingsStore
     private(set) var step: Step = .welcome
     var goal: Goal = .unwind
-    var bedtime = ClockTime(hour: 22, minute: 30)
+    var bedtime = ClockTime(hour: 22, minute: 0)
     var wakeTime = ClockTime(hour: 7, minute: 0)
 
     init(settings: SettingsStore) {

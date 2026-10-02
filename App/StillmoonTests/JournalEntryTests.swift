@@ -6,7 +6,7 @@ struct JournalEntryTests {
     @Test func validEntryHasNoMessage() {
         let e = JournalEntry(bedtime: TestEnv.d(2026, 10, 1, 23), wakeTime: TestEnv.d(2026, 10, 2, 7))
         #expect(e.validationMessage() == nil)
-        #expect(e.asleepMinutes == 480)
+        #expect(e.inBedMinutes == 480)
     }
 
     @Test func wakeBeforeBedIsRejected() {

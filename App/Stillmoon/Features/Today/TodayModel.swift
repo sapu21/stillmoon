@@ -40,6 +40,22 @@ struct ResolvedRecommendation: Identifiable, Hashable {
     }
 
     var awakeAtNightExercise: Exercise? { catalog.exercises.first { $0.category == .awakeAtNight } }
+    enum NightPhase { case windDown, awake }
+
+    /// Night mode starts an hour before bedtime; until bedtime that hour is for winding down.
+    func nightPhase(at now: Date) -> NightPhase {
+        let bedtime = settings.settings.bedtime ?? NightModeResolver.defaultBedtime
+        return ClockTime(of: now, calendar: calendar).minutesSinceSixPM < bedtime.minutesSinceSixPM ? .windDown : .awake
+    }
+
+    var windDownSuggestion: ResolvedRecommendation? {
+        if let rec = recommendations.first(where: { catalog.exercise(id: $0.itemID)?.category == .windDown }) {
+            return rec
+        }
+        guard let exercise = catalog.exercises.first(where: { $0.category == .windDown }) else { return nil }
+        return ResolvedRecommendation(itemID: exercise.id, kind: .exercise, title: exercise.title, reason: "")
+    }
+
     var hideProgress: Bool { settings.settings.hideProgress }
 
     static func greeting(hour: Int) -> String {

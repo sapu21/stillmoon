@@ -43,7 +43,7 @@ struct NightRowView: View {
 
     private var bedtime: String { row.entry.bedtime.formatted(date: .omitted, time: .shortened) }
     private var wake: String { row.entry.wakeTime.formatted(date: .omitted, time: .shortened) }
-    private var duration: String { Format.duration(minutes: row.entry.asleepMinutes) }
+    private var duration: String { Format.duration(minutes: row.entry.inBedMinutes) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {

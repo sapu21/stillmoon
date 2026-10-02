@@ -43,7 +43,7 @@ struct OnboardingView: View {
                 Text("Your nights stay yours").font(.title.weight(.semibold))
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Your journal and check-ins stay on this iPhone.", systemImage: "iphone")
-                    Label("Nothing you write is read or analysed.", systemImage: "text.badge.xmark")
+                    Label("Nothing you write is read or analyzed.", systemImage: "text.badge.xmark")
                     Label("You can delete everything from Settings at any time.", systemImage: "trash")
                 }
                 primary("Continue") { model.next() }

@@ -49,6 +49,6 @@ struct PlayerRequest: Identifiable, Hashable {
         }
         let catalog = (try? ContentStore.loadBundled()) ?? .empty
         return AppEnvironment(store: LocalStore(container: container, ownerID: LocalOwner.id),
-                              settings: SettingsStore(defaults: defaults), catalog: catalog)
+                              settings: SettingsStore(defaults: defaults, ownerID: LocalOwner.id), catalog: catalog)
     }
 }

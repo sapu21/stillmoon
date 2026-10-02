@@ -19,7 +19,7 @@ struct SettingsView: View {
                     Toggle("Use my bedtime and wake time", isOn: Binding(
                         get: { settings.settings.bedtime != nil },
                         set: { on in
-                            settings.settings.bedtime = on ? ClockTime(hour: 22, minute: 30) : nil
+                            settings.settings.bedtime = on ? ClockTime(hour: 22, minute: 0) : nil
                             settings.settings.wakeTime = on ? ClockTime(hour: 7, minute: 0) : nil
                         }))
                     if let bedtime = settings.settings.bedtime, let wake = settings.settings.wakeTime {
@@ -48,7 +48,7 @@ struct SettingsView: View {
                 Section {
                     Button("Delete all my data on this iPhone", role: .destructive) { confirmingDelete = true }
                 } footer: {
-                    Text("Removes your nights, check-ins, saved items and progress from this iPhone.")
+                    Text("Removes your nights, check-ins, saved items and progress from this iPhone, and resets your goal, schedule and night mode.")
                 }
             }
             .navigationTitle("Settings")

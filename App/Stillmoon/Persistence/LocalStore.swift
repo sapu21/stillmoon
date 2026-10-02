@@ -2,12 +2,26 @@ import Foundation
 import SwiftData
 import StillmoonCore
 
+enum StillmoonSchemaV1: VersionedSchema {
+    static let versionIdentifier = Schema.Version(1, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [CheckInRecord.self, JournalEntryRecord.self, CompletionRecord.self, FeedbackRecord.self, SavedItemRecord.self]
+    }
+}
+
 enum StillmoonSchema {
+    /// Two named stores so each can later sync somewhere different: health data (check-ins, journal) is
+    /// destined for the user's own iCloud (PRD section 9), account data (completions, feedback, saved items)
+    /// for Supabase. Both stay local with `cloudKitDatabase: .none` until those plans land.
     static func makeContainer(inMemory: Bool) throws -> ModelContainer {
-        let schema = Schema([CheckInRecord.self, JournalEntryRecord.self, CompletionRecord.self,
-                             FeedbackRecord.self, SavedItemRecord.self])
-        let config = ModelConfiguration(isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none)
-        return try ModelContainer(for: schema, configurations: config)
+        let health = ModelConfiguration("health",
+                                        schema: Schema([CheckInRecord.self, JournalEntryRecord.self]),
+                                        isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none)
+        let account = ModelConfiguration("account",
+                                         schema: Schema([CompletionRecord.self, FeedbackRecord.self, SavedItemRecord.self]),
+                                         isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none)
+        return try ModelContainer(for: Schema(versionedSchema: StillmoonSchemaV1.self),
+                                  configurations: [health, account])
     }
 }
 

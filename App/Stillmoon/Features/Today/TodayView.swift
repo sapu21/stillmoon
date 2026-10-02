@@ -44,12 +44,48 @@ struct TodayView: View {
             SettingsView()
         }
         .onAppear { model.refresh() }
+        .onChange(of: theme.isNight) { _, _ in showEverythingAtNight = false }
         .onChange(of: scenePhase) { _, phase in if phase == .active { model.refresh() } }
     }
 
     // MARK: Night: one card, large controls, nothing to track (PRD §7).
 
     @ViewBuilder private var nightContent: some View {
+        switch model.nightPhase(at: .now) {
+        case .windDown: windDownCard
+        case .awake: awakeCard
+        }
+        Button("Show everything") { showEverythingAtNight = true }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .tint(theme.accent)
+    }
+
+    @ViewBuilder private var windDownCard: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Time to wind down").font(.title2.weight(.semibold))
+                if let suggestion = model.windDownSuggestion {
+                    Text(suggestion.title).font(.title3)
+                    if !suggestion.reason.isEmpty {
+                        Text(suggestion.reason).foregroundStyle(theme.secondaryText)
+                    }
+                    Button {
+                        env.playerRequest = PlayerRequest(exerciseID: suggestion.itemID)
+                    } label: {
+                        Text("Start").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .tint(theme.accent)
+                } else {
+                    Text("Dim the lights and breathe out slowly. Resting is enough.")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var awakeCard: some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Awake at night?").font(.title2.weight(.semibold))
@@ -70,9 +106,6 @@ struct TodayView: View {
                 }
             }
         }
-        Button("Show everything") { showEverythingAtNight = true }
-            .font(.footnote)
-            .foregroundStyle(theme.secondaryText)
     }
 
     // MARK: Day
@@ -140,7 +173,7 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Last night").font(.headline)
                 if let entry = model.lastNight {
-                    Text("You recorded \(Format.duration(minutes: entry.asleepMinutes)) in bed")
+                    Text("You recorded \(Format.duration(minutes: entry.inBedMinutes)) in bed")
                         .font(.title3)
                     Text("\(entry.bedtime.formatted(date: .omitted, time: .shortened)) to \(entry.wakeTime.formatted(date: .omitted, time: .shortened))")
                         .foregroundStyle(theme.secondaryText)
