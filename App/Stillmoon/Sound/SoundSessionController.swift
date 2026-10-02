@@ -99,7 +99,10 @@ enum SoundSessionError: Error, Equatable {
 
     func resume() throws {
         pausedByInterruption = false
-        try resumeListening()
+        do { try resumeListening() } catch {
+            lastError = .couldNotStart
+            throw error
+        }
     }
 
     private func resumeListening() throws {

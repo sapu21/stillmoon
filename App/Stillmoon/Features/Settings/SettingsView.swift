@@ -7,6 +7,7 @@ struct SettingsView: View {
     @State private var confirmingDelete = false
     @State private var connecting = false
     @State private var soundDenied = false
+    @State private var requestingSound = false
 
     var body: some View {
         @Bindable var settings = env.settings
@@ -58,19 +59,23 @@ struct SettingsView: View {
                 if env.flags.soundDetection {
                     Section {
                         Toggle("Listen for sounds during a sleep session", isOn: Binding(
-                            get: { settings.settings.soundDetectionEnabled },
+                            get: { settings.settings.soundDetectionEnabled || requestingSound },
                             set: { on in
+                                guard !requestingSound else { return }
                                 if on {
+                                    requestingSound = true
                                     Task {
                                         let granted = await env.sound.requestPermission()
                                         settings.settings.soundDetectionEnabled = granted
                                         soundDenied = !granted
+                                        requestingSound = false
                                     }
                                 } else {
                                     settings.settings.soundDetectionEnabled = false
                                     soundDenied = false
                                 }
                             }))
+                        .disabled(requestingSound)
                     } header: {
                         Text("Sound detection")
                     } footer: {

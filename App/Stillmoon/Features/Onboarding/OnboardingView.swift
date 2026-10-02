@@ -15,6 +15,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 24) {
             if model.canGoBack {
                 Button { model.back() } label: { Label("Back", systemImage: "chevron.left") }
+                    .disabled(connecting)
             }
             Spacer()
             switch model.step {

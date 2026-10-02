@@ -6,6 +6,7 @@ struct SoundSessionView: View {
     private let theme = Theme.night
 
     var body: some View {
+        ScrollView {
         VStack(spacing: 28) {
             Spacer()
             Text("Listening for sounds")
@@ -23,9 +24,14 @@ struct SoundSessionView: View {
             Text("Place your phone on a stable surface, ideally charging.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(theme.secondaryText)
+            if env.sound.lastError != nil {
+                Text("Listening stopped. Tap Resume to try again.")
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(theme.secondaryText)
+            }
             Spacer()
             if case .paused = env.sound.state {
-                Button("Resume") { try? env.sound.resume() }
+                Button("Resume") { do { try env.sound.resume() } catch { } }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
             } else {
@@ -38,11 +44,14 @@ struct SoundSessionView: View {
                 .controlSize(.large)
         }
         .padding(24)
+        .frame(maxWidth: .infinity)
+        }
         .foregroundStyle(theme.text)
         .tint(theme.accent)
         .background(theme.background.ignoresSafeArea())
         .environment(\.theme, theme)
         .preferredColorScheme(.dark)
+        .interactiveDismissDisabled()
     }
 }
 
@@ -52,6 +61,7 @@ struct SoundStartButton: View {
     @State private var confirmingBattery = false
     @State private var message: String?
     @State private var starting = false
+    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -65,7 +75,7 @@ struct SoundStartButton: View {
             .controlSize(.large)
             .disabled(starting)
             if let message {
-                Text(message).font(.footnote).foregroundStyle(.secondary)
+                Text(message).font(.footnote).foregroundStyle(theme.secondaryText)
             }
         }
         .confirmationDialog("Your battery is below 30% and not charging.", isPresented: $confirmingBattery,
