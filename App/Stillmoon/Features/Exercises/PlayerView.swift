@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import StillmoonCore
 
 /// Always dim (PRD §2 night interaction): large controls, minimal text, no reward animation.
 struct PlayerView: View {
@@ -8,8 +9,8 @@ struct PlayerView: View {
     @State private var model: PlayerModel
     private let theme = Theme.night
 
-    init(model: PlayerModel) {
-        _model = State(initialValue: model)
+    init(exercise: Exercise, store: LocalStore) {
+        _model = State(initialValue: PlayerModel(exercise: exercise, store: store))
     }
 
     var body: some View {

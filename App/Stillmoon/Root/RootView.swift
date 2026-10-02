@@ -66,7 +66,15 @@ struct MainTabs: View {
             journey.refresh()
         }) { request in
             if let exercise = env.catalog.exercise(id: request.exerciseID) {
-                PlayerView(model: PlayerModel(exercise: exercise, store: env.store))
+                PlayerView(exercise: exercise, store: env.store)
+            } else {
+                ContentUnavailableView("This exercise isn't available", systemImage: "questionmark.circle")
+                    .overlay(alignment: .bottom) {
+                        Button("Close") { env.playerRequest = nil }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                            .padding(.bottom, 48)
+                    }
             }
         }
     }
