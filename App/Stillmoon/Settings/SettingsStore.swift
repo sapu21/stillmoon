@@ -15,9 +15,10 @@ struct AppSettings: Codable, Equatable {
     var hideProgress = false
     var nightModeOverride: NightModeOverride = .automatic
     var snoringNoteShown = false
+    var healthConnected = false
 
     enum CodingKeys: String, CodingKey {
-        case goal, bedtime, wakeTime, weeklyGoal, hasOnboarded, hideProgress, nightModeOverride, snoringNoteShown
+        case goal, bedtime, wakeTime, weeklyGoal, hasOnboarded, hideProgress, nightModeOverride, snoringNoteShown, healthConnected
     }
 
     init() {}
@@ -33,6 +34,7 @@ struct AppSettings: Codable, Equatable {
         hideProgress = try c.decodeIfPresent(Bool.self, forKey: .hideProgress) ?? false
         nightModeOverride = try c.decodeIfPresent(NightModeOverride.self, forKey: .nightModeOverride) ?? .automatic
         snoringNoteShown = try c.decodeIfPresent(Bool.self, forKey: .snoringNoteShown) ?? false
+        healthConnected = try c.decodeIfPresent(Bool.self, forKey: .healthConnected) ?? false
     }
 }
 

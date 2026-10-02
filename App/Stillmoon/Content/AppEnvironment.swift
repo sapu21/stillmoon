@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import StillmoonCore
 
 struct PlayerRequest: Identifiable, Hashable {
     let exerciseID: String
@@ -12,15 +13,31 @@ struct PlayerRequest: Identifiable, Hashable {
     let store: LocalStore
     let settings: SettingsStore
     let catalog: ContentCatalog
+    let health: HealthDataSource
     /// True while a sound-detection session runs (Plan 4).
     var sessionActive = false
     /// Set to open the exercise player full screen from anywhere.
     var playerRequest: PlayerRequest?
 
-    init(store: LocalStore, settings: SettingsStore, catalog: ContentCatalog) {
+    init(store: LocalStore, settings: SettingsStore, catalog: ContentCatalog,
+         health: HealthDataSource = FakeHealthSource()) {
         self.store = store
         self.settings = settings
         self.catalog = catalog
+        self.health = health
+    }
+
+    /// Asks for Health access. HealthKit never says whether read access was granted,
+    /// so "connected" means the user went through the prompt.
+    func connectHealth() async -> Bool {
+        guard health.isAvailable else { return false }
+        do {
+            try await health.requestAuthorization()
+            settings.settings.healthConnected = true
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// Deletes this owner's local records and resets preferences, keeping onboarding done.
@@ -48,7 +65,11 @@ struct PlayerRequest: Identifiable, Hashable {
             defaults = .standard
         }
         let catalog = (try? ContentStore.loadBundled()) ?? .empty
+        let health: HealthDataSource = arguments.contains("-fake-health")
+            ? FakeHealthSource(samples: FakeHealthSource.sampleNight(endingOn: .now, calendar: .current))
+            : HealthKitService()
         return AppEnvironment(store: LocalStore(container: container, ownerID: LocalOwner.id),
-                              settings: SettingsStore(defaults: defaults, ownerID: LocalOwner.id), catalog: catalog)
+                              settings: SettingsStore(defaults: defaults, ownerID: LocalOwner.id), catalog: catalog,
+                              health: health)
     }
 }
