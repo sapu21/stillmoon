@@ -1,3 +1,4 @@
+import AVFAudio
 import Foundation
 import Observation
 import SwiftData
@@ -14,17 +15,22 @@ struct PlayerRequest: Identifiable, Hashable {
     let settings: SettingsStore
     let catalog: ContentCatalog
     let health: HealthDataSource
-    /// True while a sound-detection session runs (Plan 4).
-    var sessionActive = false
+    var flags = FeatureFlags()
+    let sound: SoundSessionController
+    /// True while a sound-detection session runs.
+    var sessionActive: Bool { sound.isActive }
     /// Set to open the exercise player full screen from anywhere.
     var playerRequest: PlayerRequest?
 
     init(store: LocalStore, settings: SettingsStore, catalog: ContentCatalog,
-         health: HealthDataSource = FakeHealthSource()) {
+         health: HealthDataSource = FakeHealthSource(), sound: SoundSessionController? = nil) {
         self.store = store
         self.settings = settings
         self.catalog = catalog
         self.health = health
+        self.sound = sound ?? SoundSessionController(
+            store: store, detector: FakeSoundDetector(), permission: FakeMicrophonePermission(granted: true),
+            battery: FakeBattery(), settings: settings, flags: { FeatureFlags() })
     }
 
     /// Asks for Health access. HealthKit never says whether read access was granted,
@@ -70,8 +76,24 @@ struct PlayerRequest: Identifiable, Hashable {
             : HealthKitService()
         let store = LocalStore(container: container, ownerID: LocalOwner.id)
         store.closeOrphanedSessions()
-        return AppEnvironment(store: store,
-                              settings: SettingsStore(defaults: defaults, ownerID: LocalOwner.id), catalog: catalog,
-                              health: health)
+        let settings = SettingsStore(defaults: defaults, ownerID: LocalOwner.id)
+        let fakeSound = arguments.contains("-fake-sound")
+        let detector: SoundDetecting = fakeSound
+            ? FakeSoundDetector(script: FakeSoundDetector.lastNightScript(now: .now, calendar: .current))
+            : SoundAnalysisDetector()
+        let permission: MicrophonePermission = fakeSound ? FakeMicrophonePermission(granted: true) : SystemMicrophonePermission()
+        let battery: BatteryReading = fakeSound ? FakeBattery() : DeviceBattery()
+        let sound = SoundSessionController(store: store, detector: detector, permission: permission,
+                                           battery: battery, settings: settings, flags: { FeatureFlags() })
+        let env = AppEnvironment(store: store, settings: settings, catalog: catalog, health: health, sound: sound)
+        if !fakeSound {
+            NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil,
+                                                   queue: .main) { [weak sound] note in
+                guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+                MainActor.assumeIsolated { sound?.handleInterruption(began: type == .began) }
+            }
+        }
+        return env
     }
 }
