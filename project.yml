@@ -18,12 +18,15 @@ targets:
     platform: iOS
     sources:
       - path: App/Stillmoon
+        excludes: ["Info.plist"]
     dependencies:
       - package: StillmoonCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.stillmoon.ios
         GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: App/Stillmoon/Info.plist
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Stillmoon listens for snoring, speech and coughing on this iPhone during a sleep session you start. Sound is analyzed on the device and never recorded or stored."
         INFOPLIST_KEY_CFBundleDisplayName: Stillmoon
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         CODE_SIGN_ENTITLEMENTS: App/Stillmoon/Stillmoon.entitlements

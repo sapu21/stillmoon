@@ -1,0 +1,70 @@
+import AVFAudio
+import Foundation
+import SoundAnalysis
+
+/// Live classification of microphone input on the device. No audio is kept.
+final class SoundAnalysisDetector: SoundDetecting {
+    static let wantedIdentifiers: Set<String> = ["snoring", "speech", "cough"]
+
+    private let engine = AVAudioEngine()
+    private var analyzer: SNAudioStreamAnalyzer?
+    private var observer: ClassificationObserver?
+    private let analysisQueue = DispatchQueue(label: "app.stillmoon.sound-analysis")
+
+    func start(onObservation: @escaping @Sendable (SoundObservation) -> Void) throws {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.record, mode: .measurement)
+        try session.setActive(true)
+
+        let input = engine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        let analyzer = SNAudioStreamAnalyzer(format: format)
+        let request = try SNClassifySoundRequest(classifierIdentifier: .version1)
+        let observer = ClassificationObserver(wanted: Self.wantedIdentifiers, onObservation: onObservation)
+        try analyzer.add(request, withObserver: observer)
+        self.analyzer = analyzer
+        self.observer = observer
+
+        input.installTap(onBus: 0, bufferSize: 8192, format: format,
+                         block: Self.makeTapBlock(analyzer: analyzer, queue: analysisQueue))
+        try engine.start()
+    }
+
+    func stop() {
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        analyzer?.completeAnalysis()
+        analyzer = nil
+        observer = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    /// Built outside the main actor: the tap runs on an audio thread.
+    private nonisolated static func makeTapBlock(analyzer: SNAudioStreamAnalyzer,
+                                                 queue: DispatchQueue) -> AVAudioNodeTapBlock {
+        nonisolated(unsafe) let analyzer = analyzer
+        return { buffer, time in
+            queue.async { analyzer.analyze(buffer, atAudioFramePosition: time.sampleTime) }
+        }
+    }
+}
+
+/// Receives classifier results on SoundAnalysis's queue.
+nonisolated final class ClassificationObserver: NSObject, SNResultsObserving, @unchecked Sendable {
+    private let wanted: Set<String>
+    private let onObservation: @Sendable (SoundObservation) -> Void
+
+    init(wanted: Set<String>, onObservation: @escaping @Sendable (SoundObservation) -> Void) {
+        self.wanted = wanted
+        self.onObservation = onObservation
+    }
+
+    func request(_ request: SNRequest, didProduce result: SNResult) {
+        guard let result = result as? SNClassificationResult else { return }
+        let now = Date()
+        for classification in result.classifications where wanted.contains(classification.identifier) {
+            onObservation(SoundObservation(identifier: classification.identifier,
+                                           confidence: classification.confidence, time: now))
+        }
+    }
+}
