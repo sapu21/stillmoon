@@ -1,0 +1,101 @@
+import Foundation
+import Observation
+import StillmoonCore
+
+struct ResolvedRecommendation: Identifiable, Hashable {
+    let itemID: String
+    let kind: ContentKind
+    let title: String
+    let reason: String
+    var id: String { itemID }
+    var route: Route { kind == .exercise ? .exercise(itemID) : .article(itemID) }
+}
+
+@Observable final class TodayModel {
+    static let doctorArticleID = "talk-to-a-doctor"
+    /// A journal entry counts as "last night" if its wake time is within this window.
+    static let lastNightWindow: TimeInterval = 20 * 3600
+
+    @ObservationIgnored private let store: LocalStore
+    @ObservationIgnored private let settings: SettingsStore
+    @ObservationIgnored private let catalog: ContentCatalog
+    @ObservationIgnored private let clock: () -> Date
+    @ObservationIgnored private let calendar: Calendar
+
+    private(set) var greeting = ""
+    private(set) var todayCheckIn: CheckIn?
+    private(set) var lastNight: JournalEntry?
+    private(set) var recommendations: [ResolvedRecommendation] = []
+    private(set) var progress = ProgressSummary(windDownsThisWeek: 0, weeklyGoal: 3, goalMet: false,
+                                                totalWindDowns: 0, journeyStage: 0)
+    private(set) var showsDifficultyCard = false
+
+    init(store: LocalStore, settings: SettingsStore, catalog: ContentCatalog,
+         now: @escaping () -> Date = Date.init, calendar: Calendar = .current) {
+        self.store = store
+        self.settings = settings
+        self.catalog = catalog
+        self.clock = now
+        self.calendar = calendar
+    }
+
+    var awakeAtNightExercise: Exercise? { catalog.exercises.first { $0.category == .awakeAtNight } }
+    var hideProgress: Bool { settings.settings.hideProgress }
+
+    static func greeting(hour: Int) -> String {
+        switch hour {
+        case 5..<12: "Good morning"
+        case 12..<17: "Good afternoon"
+        case 17..<22: "Good evening"
+        default: "It's late. Go gently."
+        }
+    }
+
+    func refresh() {
+        let now = clock()
+        greeting = Self.greeting(hour: calendar.component(.hour, from: now))
+        todayCheckIn = store.todayCheckIn(now: now, calendar: calendar)
+
+        let entries = store.journalEntries()
+        lastNight = entries
+            .filter { $0.wakeTime <= now && now.timeIntervalSince($0.wakeTime) <= Self.lastNightWindow }
+            .max { $0.wakeTime < $1.wakeTime }
+
+        let weekAgo = calendar.date(byAdding: .day, value: -7, to: now)!
+        let input = RecommendationInput(
+            goal: settings.settings.goal,
+            todayCheckIn: todayCheckIn,
+            recentBedtimes: entries.map(\.bedtime).filter { $0 >= weekAgo && $0 <= now },
+            feedback: store.feedback(),
+            catalog: catalog.catalogItems)
+        recommendations = RecommendationEngine.recommend(input, calendar: calendar).compactMap { rec in
+            guard let title = catalog.title(for: rec.itemID) else { return nil }
+            let kind: ContentKind = catalog.exercise(id: rec.itemID) != nil ? .exercise : .article
+            return ResolvedRecommendation(itemID: rec.itemID, kind: kind, title: title, reason: rec.reason)
+        }
+
+        progress = ProgressCalculator.summary(completions: store.completions(), weeklyGoal: settings.settings.weeklyGoal,
+                                              now: now, calendar: calendar)
+        showsDifficultyCard = ReferralSignals.showsDifficultyCard(todayCheckIn: todayCheckIn)
+    }
+
+    /// One check-in per day: a second save today updates the first.
+    func saveCheckIn(_ checkIn: CheckIn) {
+        var checkIn = checkIn
+        if let existing = todayCheckIn ?? store.todayCheckIn(now: clock(), calendar: calendar) {
+            checkIn.id = existing.id
+        }
+        store.saveCheckIn(checkIn)
+        refresh()
+    }
+
+    func saveJournalEntry(_ entry: JournalEntry) {
+        store.saveJournalEntry(entry)
+        refresh()
+    }
+
+    func rate(_ itemID: String, _ rating: FeedbackRating) {
+        store.addFeedback(RecommendationFeedback(itemID: itemID, rating: rating, at: clock()))
+        refresh()
+    }
+}
