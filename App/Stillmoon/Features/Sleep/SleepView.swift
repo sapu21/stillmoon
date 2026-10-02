@@ -9,11 +9,24 @@ struct SleepView: View {
         List {
             if model.rows.isEmpty {
                 ContentUnavailableView("No nights yet", systemImage: "moon.zzz",
-                                       description: Text("Add last night with the + button."))
+                                       description: Text("Add a night with the + button, or connect Apple Health in Settings."))
+                    .listRowBackground(Color.clear)
+            }
+            if !model.isHealthConnected {
+                Text("Connect Apple Health in Settings to see estimates from your watch or other devices.")
+                    .font(.footnote)
+                    .foregroundStyle(theme.secondaryText)
+                    .listRowBackground(Color.clear)
+            } else if model.healthError {
+                Text("Apple Health couldn't be read right now. Your own entries are below.")
+                    .font(.footnote)
+                    .foregroundStyle(theme.secondaryText)
                     .listRowBackground(Color.clear)
             }
             ForEach(model.rows) { row in
-                NightRowView(row: row)
+                NavigationLink(value: row) {
+                    NightRowView(row: row)
+                }
                     .listRowBackground(theme.surface)
                     .deleteDisabled(row.entry == nil)
             }
@@ -22,6 +35,7 @@ struct SleepView: View {
                 Task { for row in rows { await model.deleteEntry(of: row) } }
             }
         }
+        .navigationDestination(for: NightRow.self) { NightDetailView(row: $0) }
         .scrollContentBackground(.hidden)
         .background(theme.background.ignoresSafeArea())
         .navigationTitle("Sleep")
@@ -46,22 +60,18 @@ struct NightRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(row.morning, format: .dateTime.weekday(.wide).month().day())
                 .font(.headline)
+            if let report = row.report {
+                Text(NightSummary.estimateLine(report))
+                    .font(.subheadline)
+            }
             if let entry = row.entry {
-                let bedtime = entry.bedtime.formatted(date: .omitted, time: .shortened)
-                let wake = entry.wakeTime.formatted(date: .omitted, time: .shortened)
-                let duration = Format.duration(minutes: entry.inBedMinutes)
-                Text("You recorded \(bedtime) to \(wake) · \(duration) in bed")
+                Text("You recorded \(Format.duration(minutes: entry.inBedMinutes)) in bed")
                     .font(.subheadline)
                     .foregroundStyle(theme.secondaryText)
-                    .accessibilityLabel("You recorded \(bedtime) to \(wake), \(duration) in bed")
             }
             if let checkIn = row.checkIn {
                 Text("You felt \(checkIn.restedness) of 5 rested")
                     .font(.subheadline)
-            }
-            if let note = row.entry?.note, !note.isEmpty {
-                Text(note)
-                    .font(.callout)
                     .foregroundStyle(theme.secondaryText)
             }
         }
