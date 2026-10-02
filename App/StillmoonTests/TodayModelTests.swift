@@ -6,13 +6,44 @@ import StillmoonCore
 struct TodayModelTests {
     let now = TestEnv.d(2026, 10, 2, 9)
 
-    func make(goal: Goal = .unwind) throws -> (TodayModel, LocalStore) {
+    func make(goal: Goal = .unwind, connected: Bool = false, samples: [SleepSample] = []) throws -> (TodayModel, LocalStore) {
         let store = try TestEnv.store()
         let settings = TestEnv.settings()
         settings.settings.goal = goal
-        let model = TodayModel(store: store, settings: settings, catalog: TestEnv.catalog,
+        settings.settings.healthConnected = connected
+        let health = FakeHealthSource(samples: samples)
+        let model = TodayModel(store: store, settings: settings, catalog: TestEnv.catalog, health: health,
                                now: { now }, calendar: TestEnv.cal)
         return (model, store)
+    }
+
+    @Test func lastNightReportWhenConnected() async throws {
+        let (m, _) = try make(connected: true, samples: FakeHealthSource.sampleNight(endingOn: now, calendar: TestEnv.cal))
+        await m.refreshHealth()
+        #expect(m.lastNightReport?.primarySource == "Apple Watch")
+    }
+
+    @Test func noReportWhenNotConnected() async throws {
+        let (m, _) = try make(connected: false, samples: FakeHealthSource.sampleNight(endingOn: now, calendar: TestEnv.cal))
+        await m.refreshHealth()
+        #expect(m.lastNightReport == nil)
+    }
+
+    @Test func variedHealthBedtimesSuggestRoutine() async throws {
+        // Four nights, bed at 22:00, 23:45, 00:30 and 22:15 (spread 150 min); now is 2026-10-02 09:00.
+        let starts = [TestEnv.d(2026, 9, 28, 22), TestEnv.d(2026, 9, 29, 23, 45),
+                      TestEnv.d(2026, 10, 1, 0, 30), TestEnv.d(2026, 10, 1, 22, 15)]
+        let samples = starts.map { SleepSample(stage: .core, start: $0, end: $0.addingTimeInterval(7 * 3600), sourceName: "Apple Watch") }
+        let (m, _) = try make(goal: .understandSleep, connected: true, samples: samples)
+        await m.refreshHealth()
+        #expect(m.recommendations.first?.reason == "Your recorded bedtimes varied this week.")
+    }
+
+    @Test func healthAndJournalBedtimesDedupedPerNight() {
+        let journal = [TestEnv.d(2026, 10, 1, 23)]
+        let health = [TestEnv.d(2026, 10, 1, 23, 20), TestEnv.d(2026, 9, 30, 22)]
+        let combined = TodayModel.combinedBedtimes(journal: journal, health: health, calendar: TestEnv.cal)
+        #expect(combined.sorted() == [TestEnv.d(2026, 9, 30, 22), TestEnv.d(2026, 10, 1, 23, 20)])
     }
 
     func makeWithSettings() throws -> (TodayModel, LocalStore, SettingsStore) {

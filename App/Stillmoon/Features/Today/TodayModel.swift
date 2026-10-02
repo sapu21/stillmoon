@@ -19,22 +19,27 @@ struct ResolvedRecommendation: Identifiable, Hashable {
     @ObservationIgnored private let store: LocalStore
     @ObservationIgnored private let settings: SettingsStore
     @ObservationIgnored private let catalog: ContentCatalog
+    @ObservationIgnored private let health: HealthDataSource
+    @ObservationIgnored private var healthBedtimes: [Date] = []
     @ObservationIgnored private let clock: () -> Date
     @ObservationIgnored private let calendar: Calendar
 
     private(set) var greeting = ""
     private(set) var todayCheckIn: CheckIn?
     private(set) var lastNight: JournalEntry?
+    private(set) var lastNightReport: NightReport?
     private(set) var recommendations: [ResolvedRecommendation] = []
     private(set) var progress = ProgressSummary(windDownsThisWeek: 0, weeklyGoal: 3, goalMet: false,
                                                 totalWindDowns: 0, journeyStage: 0)
     private(set) var showsDifficultyCard = false
 
     init(store: LocalStore, settings: SettingsStore, catalog: ContentCatalog,
+         health: HealthDataSource = FakeHealthSource(),
          now: @escaping () -> Date = Date.init, calendar: Calendar = .current) {
         self.store = store
         self.settings = settings
         self.catalog = catalog
+        self.health = health
         self.clock = now
         self.calendar = calendar
     }
@@ -67,6 +72,34 @@ struct ResolvedRecommendation: Identifiable, Hashable {
         }
     }
 
+    /// Bedtimes for recommendations: one per night, a Health estimate replacing the journal entry for the same night.
+    static func combinedBedtimes(journal: [Date], health: [Date], calendar: Calendar) -> [Date] {
+        var byNight: [Date: Date] = [:]
+        for bedtime in journal { byNight[NightWindow.nightKey(for: bedtime, calendar: calendar)] = bedtime }
+        for bedtime in health { byNight[NightWindow.nightKey(for: bedtime, calendar: calendar)] = bedtime }
+        return Array(byNight.values)
+    }
+
+    /// Reads the last 7 nights from Health (when connected), then recomputes everything.
+    func refreshHealth() async {
+        let now = clock()
+        lastNightReport = nil
+        healthBedtimes = []
+        if settings.settings.healthConnected {
+            let today = calendar.startOfDay(for: now)
+            let oldest = calendar.date(byAdding: .day, value: -6, to: today)!
+            if let samples = try? await health.sleepSamples(from: NightWindow.forMorning(of: oldest, calendar: calendar).start, to: now) {
+                for offset in 0..<7 {
+                    let morning = calendar.date(byAdding: .day, value: -offset, to: today)!
+                    guard let report = SleepReportBuilder.build(samples: samples, window: NightWindow.forMorning(of: morning, calendar: calendar)) else { continue }
+                    if offset == 0 { lastNightReport = report }
+                    healthBedtimes.append(report.sleepStart)
+                }
+            }
+        }
+        refresh()
+    }
+
     func refresh() {
         let now = clock()
         greeting = Self.greeting(hour: calendar.component(.hour, from: now))
@@ -81,7 +114,9 @@ struct ResolvedRecommendation: Identifiable, Hashable {
         let input = RecommendationInput(
             goal: settings.settings.goal,
             todayCheckIn: todayCheckIn,
-            recentBedtimes: entries.map(\.bedtime).filter { $0 >= weekAgo && $0 <= now },
+            recentBedtimes: Self.combinedBedtimes(journal: entries.map(\.bedtime).filter { $0 >= weekAgo && $0 <= now },
+                                                  health: healthBedtimes, calendar: calendar)
+                .filter { $0 >= weekAgo && $0 <= now },
             feedback: store.feedback(),
             catalog: catalog.catalogItems)
         recommendations = RecommendationEngine.recommend(input, calendar: calendar).compactMap { rec in

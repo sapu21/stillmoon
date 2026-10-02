@@ -30,7 +30,7 @@ struct MainTabs: View {
     @State private var journey: JourneyModel
 
     init(env: AppEnvironment) {
-        _today = State(initialValue: TodayModel(store: env.store, settings: env.settings, catalog: env.catalog))
+        _today = State(initialValue: TodayModel(store: env.store, settings: env.settings, catalog: env.catalog, health: env.health))
         _sleep = State(initialValue: SleepModel(store: env.store, health: env.health, settings: env.settings))
         _exercises = State(initialValue: ExercisesModel(store: env.store, catalog: env.catalog))
         _journey = State(initialValue: JourneyModel(store: env.store, settings: env.settings, catalog: env.catalog))
@@ -62,7 +62,7 @@ struct MainTabs: View {
             .tabItem { Label("Journey", systemImage: "map") }
         }
         .fullScreenCover(item: $env.playerRequest, onDismiss: {
-            today.refresh()
+            Task { await today.refreshHealth() }
             journey.refresh()
         }) { request in
             if let exercise = env.catalog.exercise(id: request.exerciseID) {

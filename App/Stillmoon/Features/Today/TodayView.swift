@@ -43,9 +43,9 @@ struct TodayView: View {
         .sheet(isPresented: $showingSettings, onDismiss: model.refresh) {
             SettingsView()
         }
-        .onAppear { model.refresh() }
+        .task { await model.refreshHealth() }
         .onChange(of: theme.isNight) { _, _ in showEverythingAtNight = false }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { model.refresh() } }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await model.refreshHealth() } } }
     }
 
     // MARK: Night: one card, large controls, nothing to track (PRD §7).
@@ -172,7 +172,15 @@ struct TodayView: View {
         Card {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Last night").font(.headline)
-                if let entry = model.lastNight {
+                if let report = model.lastNightReport {
+                    Text(NightSummary.estimateLine(report)).font(.title3)
+                    Text("\(report.sleepStart.formatted(date: .omitted, time: .shortened)) to \(report.sleepEnd.formatted(date: .omitted, time: .shortened))")
+                        .foregroundStyle(theme.secondaryText)
+                    if let entry = model.lastNight {
+                        Text("You recorded \(Format.duration(minutes: entry.inBedMinutes)) in bed")
+                            .foregroundStyle(theme.secondaryText)
+                    }
+                } else if let entry = model.lastNight {
                     Text("You recorded \(Format.duration(minutes: entry.inBedMinutes)) in bed")
                         .font(.title3)
                     Text("\(entry.bedtime.formatted(date: .omitted, time: .shortened)) to \(entry.wakeTime.formatted(date: .omitted, time: .shortened))")
