@@ -8,22 +8,35 @@ struct SoundObservation: Sendable, Equatable {
 
 protocol SoundDetecting: AnyObject {
     /// `onObservation` may be called on any thread.
-    func start(onObservation: @escaping @Sendable (SoundObservation) -> Void) throws
+    /// `onFailure` may be called on any thread, when the detector tears itself down after starting.
+    func start(onObservation: @escaping @Sendable (SoundObservation) -> Void,
+               onFailure: @escaping @Sendable () -> Void) throws
+    /// Full teardown: audio session deactivated, handlers dropped.
     func stop()
+    /// Stops listening but keeps the audio session alive so a later `start` can resume (interruptions).
+    func suspend()
 }
+
+private struct FakeStartFailure: Error {}
 
 /// Emits a fixed script when started. Used by tests and `-fake-sound`.
 final class FakeSoundDetector: SoundDetecting {
     private let script: [SoundObservation]
     private var handler: (@Sendable (SoundObservation) -> Void)?
+    private var failureHandler: (@Sendable () -> Void)?
     private(set) var isRunning = false
+    private(set) var suspendCount = 0
+    var failOnStart = false
 
     init(script: [SoundObservation] = []) {
         self.script = script
     }
 
-    func start(onObservation: @escaping @Sendable (SoundObservation) -> Void) throws {
+    func start(onObservation: @escaping @Sendable (SoundObservation) -> Void,
+               onFailure: @escaping @Sendable () -> Void) throws {
+        if failOnStart { throw FakeStartFailure() }
         handler = onObservation
+        failureHandler = onFailure
         isRunning = true
         script.forEach(onObservation)
     }
@@ -32,9 +45,21 @@ final class FakeSoundDetector: SoundDetecting {
         handler?(observation)
     }
 
+    /// Simulates the detector dying while running.
+    func fail() {
+        isRunning = false
+        failureHandler?()
+    }
+
     func stop() {
         isRunning = false
         handler = nil
+        failureHandler = nil
+    }
+
+    func suspend() {
+        isRunning = false
+        suspendCount += 1
     }
 
     /// Snoring at 02:00 and 02:00:10 (one event) and speech at 03:00, last night.

@@ -5,8 +5,13 @@ import StillmoonCore
 
 private nonisolated final class Fired: @unchecked Sendable { nonisolated(unsafe) var value = false }
 
+private nonisolated final class TestClock: @unchecked Sendable { nonisolated(unsafe) var date: Date
+    init(_ date: Date) { self.date = date }
+}
+
 struct SoundSessionControllerTests {
     let now = TestEnv.d(2026, 10, 1, 23)
+    private let clock = TestClock(TestEnv.d(2026, 10, 1, 23))
 
     func make(enabled: Bool = true, granted: Bool = true, flag: Bool = true,
               script: [SoundObservation] = [], battery: BatteryState = BatteryState(level: 0.9, charging: false))
@@ -18,7 +23,7 @@ struct SoundSessionControllerTests {
         let permission = FakeMicrophonePermission(granted: granted)
         let controller = SoundSessionController(store: store, detector: detector, permission: permission,
                                                 battery: FakeBattery(state: battery), settings: settings,
-                                                flags: { FeatureFlags(soundDetection: flag) }, now: { now })
+                                                flags: { FeatureFlags(soundDetection: flag) }, now: { clock.date })
         return (controller, store, detector, permission)
     }
 
@@ -75,10 +80,43 @@ struct SoundSessionControllerTests {
         let session = store.openSessionID()
         c.handleInterruption(began: true)
         #expect(!detector.isRunning)
+        #expect(detector.suspendCount == 1)
         c.handleInterruption(began: false)
         #expect(detector.isRunning)
         #expect(session != nil)
         #expect(store.interruptions(sessionID: session!) == 1)
+    }
+
+    @Test func detectorFailurePausesWithError() async throws {
+        let (c, _, detector, _) = try make()
+        try await c.start()
+        detector.fail()
+        #expect(c.state == .paused(since: now))
+        #expect(c.lastError == .couldNotStart)
+        #expect(!detector.isRunning)
+        try c.resume()
+        #expect(c.state == .running(since: now))
+        #expect(c.lastError == nil)
+        #expect(detector.isRunning)
+    }
+
+    @Test func quietNightSavesClosedEvents() async throws {
+        let (c, store, detector, _) = try make()
+        try await c.start()
+        detector.emit(SoundObservation(identifier: "snoring", confidence: 0.8, time: clock.date))
+        clock.date = clock.date.addingTimeInterval(120)
+        c.tickForTesting()
+        #expect(c.state == .running(since: now))
+        #expect(store.soundEvents(from: .distantPast, to: .distantFuture).map(\.label) == [.snoringLike])
+    }
+
+    @Test func failedStartDeletesTheEmptySession() async throws {
+        let (c, store, detector, _) = try make()
+        detector.failOnStart = true
+        await #expect(throws: SoundSessionError.couldNotStart) { try await c.start() }
+        #expect(c.state == .idle)
+        #expect(store.openSessionID() == nil)
+        #expect(store.soundSessionCount() == 0)
     }
 
     @Test func interruptionEndDoesNotResumeUserPause() async throws {

@@ -13,38 +13,61 @@ final class SoundAnalysisDetector: SoundDetecting {
     private var isRunning = false
     private var tapInstalled = false
     private var onObservation: (@Sendable (SoundObservation) -> Void)?
+    private var onFailure: (@Sendable () -> Void)?
+    /// Engine stopped by `suspend()`; the audio session and configuration observer are still alive.
+    private var isSuspended = false
+
+    private struct InvalidInputFormat: Error {}
     private var configObserver: NSObjectProtocol?
 
-    func start(onObservation: @escaping @Sendable (SoundObservation) -> Void) throws {
+    func start(onObservation: @escaping @Sendable (SoundObservation) -> Void,
+               onFailure: @escaping @Sendable () -> Void) throws {
         if isRunning { stop() }
+        let resuming = isSuspended
         self.onObservation = onObservation
+        self.onFailure = onFailure
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement)
-            try session.setActive(true)
+            if !resuming {
+                let session = AVAudioSession.sharedInstance()
+                // Mixes with other audio: people may fall asleep to a podcast or white noise from another app.
+                try session.setCategory(.playAndRecord, mode: .measurement,
+                                        options: [.mixWithOthers, .allowBluetooth])
+                try session.setActive(true)
+            }
             try buildAndStartEngine()
         } catch {
             teardown()
             throw error
         }
-        configObserver = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
-        ) { [weak self] _ in
-            Task { @MainActor in self?.rebuildAfterConfigurationChange() }
+        if configObserver == nil {
+            configObserver = NotificationCenter.default.addObserver(
+                forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
+            ) { [weak self] _ in
+                Task { @MainActor in self?.rebuildAfterConfigurationChange() }
+            }
         }
+        isSuspended = false
         isRunning = true
     }
 
     func stop() {
-        guard isRunning else { return }
+        guard isRunning || isSuspended else { return }
         isRunning = false
         teardown()
+    }
+
+    func suspend() {
+        guard isRunning else { return }
+        isRunning = false
+        isSuspended = true
+        removeTapAndDrain()
     }
 
     private func buildAndStartEngine() throws {
         guard let onObservation else { return }
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else { throw InvalidInputFormat() }
         let analyzer = SNAudioStreamAnalyzer(format: format)
         let request = try SNClassifySoundRequest(classifierIdentifier: .version1)
         let observer = ClassificationObserver(wanted: Self.wantedIdentifiers, onObservation: onObservation)
@@ -75,6 +98,8 @@ final class SoundAnalysisDetector: SoundDetecting {
         configObserver = nil
         removeTapAndDrain()
         onObservation = nil
+        onFailure = nil
+        isSuspended = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
@@ -85,9 +110,11 @@ final class SoundAnalysisDetector: SoundDetecting {
         do {
             try buildAndStartEngine()
         } catch {
-            // Leave stopped; the session controller's interruption handling will pause.
+            // Tear down and tell the controller, so a dead detector never looks alive.
+            let failure = onFailure
             isRunning = false
             teardown()
+            failure?()
         }
     }
 

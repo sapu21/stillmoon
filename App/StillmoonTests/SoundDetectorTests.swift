@@ -13,7 +13,7 @@ struct SoundDetectorTests {
         let script = FakeSoundDetector.lastNightScript(now: TestEnv.d(2026, 10, 2, 9), calendar: TestEnv.cal)
         let fake = FakeSoundDetector(script: script)
         let received = LockedBox<[SoundObservation]>([])
-        try fake.start { obs in received.mutate { $0.append(obs) } }
+        try fake.start(onObservation: { obs in received.mutate { $0.append(obs) } }, onFailure: {})
         #expect(fake.isRunning)
         #expect(received.value == script)
         fake.stop()

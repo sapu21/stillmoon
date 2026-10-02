@@ -58,6 +58,13 @@ public struct SoundEventDebouncer: Sendable {
         return closed.sorted { $0.at < $1.at }
     }
 
+    /// Closes events whose last observation is older than the merge window, oldest first.
+    public mutating func closeStale(now: Date) -> [SoundEvent] {
+        let stale = open.filter { now.timeIntervalSince($0.value.lastSeen) > Self.mergeWindow }
+        for label in stale.keys { open[label] = nil }
+        return stale.values.map(\.event).sorted { $0.at < $1.at }
+    }
+
     /// Closes every open event, oldest first.
     public mutating func flush() -> [SoundEvent] {
         let all = open.values.map(\.event).sorted { $0.at < $1.at }

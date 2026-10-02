@@ -193,6 +193,19 @@ final class LocalStore {
         save()
     }
 
+    func deleteSoundSession(_ id: UUID) {
+        let owner = ownerID
+        for record in fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.id == id })) {
+            context.delete(record)
+        }
+        save()
+    }
+
+    func soundSessionCount() -> Int {
+        let owner = ownerID
+        return fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner })).count
+    }
+
     func recordInterruption(sessionID id: UUID) {
         let owner = ownerID
         if let record = fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.id == id })).first {

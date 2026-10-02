@@ -33,6 +33,7 @@ enum SoundSessionError: Error, Equatable {
     @ObservationIgnored private var sessionID: UUID?
     @ObservationIgnored private var pausedByInterruption = false
     @ObservationIgnored private var starting = false
+    @ObservationIgnored private var tickTask: Task<Void, Never>?
 
     /// Set when a resume after an interruption fails; cleared on the next successful start or resume.
     private(set) var lastError: SoundSessionError?
@@ -77,22 +78,25 @@ enum SoundSessionError: Error, Equatable {
         do {
             try startDetector()
         } catch {
-            store.endSoundSession(id, at: started)
+            store.deleteSoundSession(id)
             sessionID = nil
             state = .idle
             throw SoundSessionError.couldNotStart
         }
         lastError = nil
+        startTicking()
     }
 
     func pause() {
         pausedByInterruption = false
-        pauseListening()
+        pauseListening(suspend: false)
     }
 
-    private func pauseListening() {
+    /// `suspend` keeps the audio session alive (interruptions, failures); a user pause releases it.
+    private func pauseListening(suspend: Bool) {
         guard case .running(let since) = state else { return }
-        detector.stop()
+        stopTicking()
+        if suspend { detector.suspend() } else { detector.stop() }
         saveClosed(debouncer.flush())
         state = .paused(since: since)
     }
@@ -115,11 +119,13 @@ enum SoundSessionError: Error, Equatable {
             throw error
         }
         lastError = nil
+        startTicking()
     }
 
     func stop() {
         guard isActive else { return }
         pausedByInterruption = false
+        stopTicking()
         detector.stop()
         saveClosed(debouncer.flush())
         if let id = sessionID { store.endSoundSession(id, at: now()) }
@@ -132,7 +138,7 @@ enum SoundSessionError: Error, Equatable {
         if began {
             guard case .running = state else { return }
             if let id = sessionID { store.recordInterruption(sessionID: id) }
-            pauseListening()
+            pauseListening(suspend: true)
             pausedByInterruption = true
         } else {
             guard pausedByInterruption else { return }
@@ -148,13 +154,48 @@ enum SoundSessionError: Error, Equatable {
 
     private func startDetector() throws {
         let captured = sessionID
-        try detector.start { [weak self] observation in
+        try detector.start(onObservation: { [weak self] observation in
             if Thread.isMainThread {
                 MainActor.assumeIsolated { self?.receive(observation, session: captured) }
             } else {
                 Task { @MainActor in self?.receive(observation, session: captured) }
             }
+        }, onFailure: { [weak self] in
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { self?.detectorFailed(session: captured) }
+            } else {
+                Task { @MainActor in self?.detectorFailed(session: captured) }
+            }
+        })
+    }
+
+    private func detectorFailed(session: UUID?) {
+        guard session == sessionID, case .running = state else { return }
+        pauseListening(suspend: true)
+        lastError = .couldNotStart
+    }
+
+    /// Saves events that went quiet, so a long quiet night doesn't hold them in memory until the end.
+    private func startTicking() {
+        tickTask?.cancel()
+        tickTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                if Task.isCancelled { break }
+                self?.tickForTesting()
+            }
         }
+    }
+
+    private func stopTicking() {
+        tickTask?.cancel()
+        tickTask = nil
+    }
+
+    /// One close-stale pass (the 60-second loop calls this).
+    func tickForTesting() {
+        guard case .running = state else { return }
+        saveClosed(debouncer.closeStale(now: now()))
     }
 
     private func receive(_ observation: SoundObservation, session: UUID?) {

@@ -6,6 +6,7 @@ struct SoundSessionView: View {
     private let theme = Theme.night
 
     var body: some View {
+        GeometryReader { proxy in
         ScrollView {
         VStack(spacing: 28) {
             Spacer()
@@ -44,7 +45,8 @@ struct SoundSessionView: View {
                 .controlSize(.large)
         }
         .padding(24)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+        }
         }
         .foregroundStyle(theme.text)
         .tint(theme.accent)

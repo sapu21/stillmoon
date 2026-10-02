@@ -16,6 +16,15 @@ struct SoundEventsTests {
         #expect(SoundLabel(classifierIdentifier: "dog_bark") == nil)
     }
 
+    @Test func closeStaleClosesOnlyOldEvents() {
+        var d = SoundEventDebouncer()
+        _ = d.add(obs(.snoringLike, 0))
+        _ = d.add(obs(.speechLike, 25))
+        let closed = d.closeStale(now: t0.addingTimeInterval(40))
+        #expect(closed.map(\.label) == [.snoringLike])
+        #expect(d.flush().map(\.label) == [.speechLike])
+    }
+
     @Test func lowConfidenceIsIgnored() {
         var d = SoundEventDebouncer()
         #expect(d.add(obs(.snoringLike, 0, 0.59)).isEmpty)
