@@ -117,3 +117,41 @@ import StillmoonCore
         self.updatedAt = updatedAt
     }
 }
+
+@Model final class SoundSessionRecord {
+    var id: UUID = UUID()
+    var ownerID: String = ""
+    var startedAt: Date = Date.distantPast
+    var endedAt: Date?
+    var interruptions: Int = 0
+
+    init(ownerID: String, startedAt: Date) {
+        self.ownerID = ownerID
+        self.startedAt = startedAt
+    }
+}
+
+@Model final class SoundEventRecord {
+    var id: UUID = UUID()
+    var ownerID: String = ""
+    var sessionID: UUID = UUID()
+    var labelRaw: String = SoundLabel.snoringLike.rawValue
+    var at: Date = Date.distantPast
+    var confidence: Double = 0
+    var correctionRaw: String = SoundCorrection.none.rawValue
+
+    init(ownerID: String, sessionID: UUID, event: SoundEvent) {
+        self.ownerID = ownerID
+        self.sessionID = sessionID
+        id = event.id
+        labelRaw = event.label.rawValue
+        at = event.at
+        confidence = event.confidence
+        correctionRaw = event.correction.rawValue
+    }
+
+    var value: SoundEvent {
+        SoundEvent(id: id, label: SoundLabel(rawValue: labelRaw) ?? .snoringLike, at: at, confidence: confidence,
+                   correction: SoundCorrection(rawValue: correctionRaw) ?? .none)
+    }
+}

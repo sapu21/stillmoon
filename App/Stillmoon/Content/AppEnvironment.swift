@@ -68,7 +68,9 @@ struct PlayerRequest: Identifiable, Hashable {
         let health: HealthDataSource = arguments.contains("-fake-health")
             ? FakeHealthSource(samples: FakeHealthSource.sampleNight(endingOn: .now, calendar: .current))
             : HealthKitService()
-        return AppEnvironment(store: LocalStore(container: container, ownerID: LocalOwner.id),
+        let store = LocalStore(container: container, ownerID: LocalOwner.id)
+        store.closeOrphanedSessions()
+        return AppEnvironment(store: store,
                               settings: SettingsStore(defaults: defaults, ownerID: LocalOwner.id), catalog: catalog,
                               health: health)
     }

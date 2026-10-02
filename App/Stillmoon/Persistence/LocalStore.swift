@@ -9,19 +9,55 @@ enum StillmoonSchemaV1: VersionedSchema {
     }
 }
 
+enum StillmoonSchemaV2: VersionedSchema {
+    static let versionIdentifier = Schema.Version(2, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [CheckInRecord.self, JournalEntryRecord.self, CompletionRecord.self, FeedbackRecord.self,
+         SavedItemRecord.self, SoundSessionRecord.self, SoundEventRecord.self]
+    }
+}
+
+enum StillmoonMigrationPlan: SchemaMigrationPlan {
+    static var schemas: [any VersionedSchema.Type] { [StillmoonSchemaV1.self, StillmoonSchemaV2.self] }
+    static var stages: [MigrationStage] {
+        [.lightweight(fromVersion: StillmoonSchemaV1.self, toVersion: StillmoonSchemaV2.self)]
+    }
+}
+
 enum StillmoonSchema {
-    /// Two named stores so each can later sync somewhere different: health data (check-ins, journal) is
-    /// destined for the user's own iCloud (PRD section 9), account data (completions, feedback, saved items)
+    /// Two named stores so each can later sync somewhere different: health data (check-ins, journal, sound)
+    /// is destined for the user's own iCloud (PRD section 9), account data (completions, feedback, saved items)
     /// for Supabase. Both stay local with `cloudKitDatabase: .none` until those plans land.
-    static func makeContainer(inMemory: Bool) throws -> ModelContainer {
-        let health = ModelConfiguration("health",
-                                        schema: Schema([CheckInRecord.self, JournalEntryRecord.self]),
-                                        isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none)
-        let account = ModelConfiguration("account",
-                                         schema: Schema([CompletionRecord.self, FeedbackRecord.self, SavedItemRecord.self]),
-                                         isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none)
+    /// `directory` is where on-disk stores live (nil = SwiftData default).
+    static func makeContainer(inMemory: Bool, directory: URL? = nil) throws -> ModelContainer {
+        let health = configuration("health", [CheckInRecord.self, JournalEntryRecord.self,
+                                              SoundSessionRecord.self, SoundEventRecord.self],
+                                   inMemory: inMemory, directory: directory)
+        let account = configuration("account", [CompletionRecord.self, FeedbackRecord.self, SavedItemRecord.self],
+                                    inMemory: inMemory, directory: directory)
+        return try ModelContainer(for: Schema(versionedSchema: StillmoonSchemaV2.self),
+                                  migrationPlan: StillmoonMigrationPlan.self,
+                                  configurations: [health, account])
+    }
+
+    /// The Plan 3 (V1) on-disk layout, used only to prove the V1 to V2 migration.
+    static func makeV1ContainerForTesting(directory: URL) throws -> ModelContainer {
+        let health = configuration("health", [CheckInRecord.self, JournalEntryRecord.self],
+                                   inMemory: false, directory: directory)
+        let account = configuration("account", [CompletionRecord.self, FeedbackRecord.self, SavedItemRecord.self],
+                                    inMemory: false, directory: directory)
         return try ModelContainer(for: Schema(versionedSchema: StillmoonSchemaV1.self),
                                   configurations: [health, account])
+    }
+
+    private static func configuration(_ name: String, _ models: [any PersistentModel.Type],
+                                      inMemory: Bool, directory: URL?) -> ModelConfiguration {
+        let schema = Schema(models)
+        if inMemory || directory == nil {
+            return ModelConfiguration(name, schema: schema, isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none)
+        }
+        return ModelConfiguration(name, schema: schema, url: directory!.appendingPathComponent("\(name).store"),
+                                  allowsSave: true, cloudKitDatabase: .none)
     }
 }
 
@@ -138,6 +174,69 @@ final class LocalStore {
         save()
     }
 
+    // MARK: Sound sessions
+
+    func startSoundSession(at date: Date) -> UUID {
+        let record = SoundSessionRecord(ownerID: ownerID, startedAt: date)
+        context.insert(record)
+        save()
+        return record.id
+    }
+
+    func endSoundSession(_ id: UUID, at date: Date) {
+        let owner = ownerID
+        fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.id == id })).first?.endedAt = date
+        save()
+    }
+
+    func recordInterruption(sessionID id: UUID) {
+        let owner = ownerID
+        if let record = fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.id == id })).first {
+            record.interruptions += 1
+        }
+        save()
+    }
+
+    func openSessionID() -> UUID? {
+        let owner = ownerID
+        return fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.endedAt == nil })).first?.id
+    }
+
+    /// Ends sessions left open by a crash or force quit, at their last event (or start) time.
+    func closeOrphanedSessions() {
+        let owner = ownerID
+        for session in fetch(FetchDescriptor<SoundSessionRecord>(predicate: #Predicate { $0.ownerID == owner && $0.endedAt == nil })) {
+            let sid = session.id
+            let last = fetch(FetchDescriptor<SoundEventRecord>(
+                predicate: #Predicate { $0.ownerID == owner && $0.sessionID == sid },
+                sortBy: [SortDescriptor(\.at, order: .reverse)])).first?.at
+            session.endedAt = last ?? session.startedAt
+        }
+        save()
+    }
+
+    // MARK: Sound events
+
+    func addSoundEvents(_ events: [SoundEvent], sessionID: UUID) {
+        guard !events.isEmpty else { return }
+        for event in events { context.insert(SoundEventRecord(ownerID: ownerID, sessionID: sessionID, event: event)) }
+        save()
+    }
+
+    func soundEvents(from start: Date, to end: Date) -> [SoundEvent] {
+        let owner = ownerID
+        let descriptor = FetchDescriptor<SoundEventRecord>(
+            predicate: #Predicate { $0.ownerID == owner && $0.at >= start && $0.at < end },
+            sortBy: [SortDescriptor(\.at)])
+        return fetch(descriptor).map(\.value)
+    }
+
+    func setCorrection(_ correction: SoundCorrection, forEvent id: UUID) {
+        let owner = ownerID
+        fetch(FetchDescriptor<SoundEventRecord>(predicate: #Predicate { $0.ownerID == owner && $0.id == id })).first?.correctionRaw = correction.rawValue
+        save()
+    }
+
     // MARK: Deletion
 
     /// Removes this owner's records only.
@@ -149,6 +248,8 @@ final class LocalStore {
             try context.delete(model: CompletionRecord.self, where: #Predicate { $0.ownerID == owner })
             try context.delete(model: FeedbackRecord.self, where: #Predicate { $0.ownerID == owner })
             try context.delete(model: SavedItemRecord.self, where: #Predicate { $0.ownerID == owner })
+            try context.delete(model: SoundSessionRecord.self, where: #Predicate { $0.ownerID == owner })
+            try context.delete(model: SoundEventRecord.self, where: #Predicate { $0.ownerID == owner })
         } catch {
             assertionFailure("Delete failed: \(error)")
         }
