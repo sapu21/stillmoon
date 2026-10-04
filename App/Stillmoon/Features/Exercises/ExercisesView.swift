@@ -40,7 +40,8 @@ struct ExercisesView: View {
                 }
             }
             if model.exercises.isEmpty && model.articles.isEmpty {
-                ContentUnavailableView.search(text: model.query)
+                LumiEmptyState(title: "Nothing found",
+                               message: model.query.isEmpty ? "Nothing here yet." : "Nothing matches \u{201C}\(model.query)\u{201D}. Try another word.")
                     .listRowBackground(Color.clear)
             }
         }
@@ -52,10 +53,7 @@ struct ExercisesView: View {
     }
 
     private func chip(_ title: String, _ filter: LibraryFilter) -> some View {
-        Button(title) { model.filter = filter }
-            .buttonStyle(.bordered)
-            .tint(model.filter == filter ? theme.accent : theme.secondaryText)
-            .accessibilityAddTraits(model.filter == filter ? .isSelected : [])
+        Chip(title: title, isSelected: model.filter == filter) { model.filter = filter }
     }
 }
 

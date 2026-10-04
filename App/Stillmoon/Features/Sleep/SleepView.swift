@@ -9,8 +9,8 @@ struct SleepView: View {
     var body: some View {
         List {
             if model.rows.isEmpty {
-                ContentUnavailableView("No nights yet", systemImage: "moon.zzz",
-                                       description: Text("Add a night with the + button, or connect Apple Health in Settings."))
+                LumiEmptyState(title: "No nights yet",
+                               message: "Add a night with the + button, or connect Apple Health in Settings.")
                     .listRowBackground(Color.clear)
             }
             if !model.isHealthConnected {

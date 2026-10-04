@@ -10,6 +10,7 @@ struct SoundSessionView: View {
         ScrollView {
         VStack(spacing: 28) {
             Spacer()
+            LumiView(mood: .sleepy, motion: .still, size: 120, animated: false)
             Text("Listening for sounds")
                 .font(.title.weight(.semibold))
                 .accessibilityAddTraits(.isHeader)
@@ -33,16 +34,13 @@ struct SoundSessionView: View {
             Spacer()
             if case .paused = env.sound.state {
                 Button("Resume") { do { try env.sound.resume() } catch { } }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    .buttonStyle(ChunkyButtonStyle(kind: .secondary))
             } else {
                 Button("Pause") { env.sound.pause() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
+                    .buttonStyle(ChunkyButtonStyle(kind: .secondary))
             }
             Button("End session") { env.sound.stop() }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(ChunkyButtonStyle())
         }
         .padding(24)
         .frame(maxWidth: .infinity, minHeight: proxy.size.height)
@@ -73,8 +71,7 @@ struct SoundStartButton: View {
                 Label("Start sleep session", systemImage: "waveform")
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
+            .buttonStyle(ChunkyButtonStyle(kind: .secondary))
             .disabled(starting)
             if let message {
                 Text(message).font(.footnote).foregroundStyle(theme.secondaryText)

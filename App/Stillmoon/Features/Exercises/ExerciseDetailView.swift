@@ -20,9 +20,7 @@ struct ExerciseDetailView: View {
                     Label("Start", systemImage: "play.fill")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .tint(theme.accent)
+                .buttonStyle(ChunkyButtonStyle())
                 Text("Based on: \(exercise.techniqueSource)")
                     .font(.footnote)
                     .foregroundStyle(theme.secondaryText)

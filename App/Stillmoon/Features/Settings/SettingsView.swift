@@ -4,6 +4,7 @@ import StillmoonCore
 struct SettingsView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.theme) private var theme
     @State private var confirmingDelete = false
     @State private var connecting = false
     @State private var soundDenied = false
@@ -105,6 +106,8 @@ struct SettingsView: View {
                     Text("Removes your nights, check-ins, saved items and progress from this iPhone, and resets your goal, schedule and night mode.")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(theme.background.ignoresSafeArea())
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
