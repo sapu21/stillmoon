@@ -17,6 +17,7 @@ struct RootView: View {
             }
             .environment(\.theme, theme)
             .tint(theme.accent)
+            .fontDesign(.rounded)
             .preferredColorScheme(night ? .dark : .light)
         }
     }
