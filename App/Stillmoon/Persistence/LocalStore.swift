@@ -17,10 +17,19 @@ enum StillmoonSchemaV2: VersionedSchema {
     }
 }
 
+enum StillmoonSchemaV3: VersionedSchema {
+    static let versionIdentifier = Schema.Version(3, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [CheckInRecord.self, JournalEntryRecord.self, CompletionRecord.self, FeedbackRecord.self,
+         SavedItemRecord.self, SoundSessionRecord.self, SoundEventRecord.self, CalmCheckRecord.self]
+    }
+}
+
 enum StillmoonMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [StillmoonSchemaV1.self, StillmoonSchemaV2.self] }
+    static var schemas: [any VersionedSchema.Type] { [StillmoonSchemaV1.self, StillmoonSchemaV2.self, StillmoonSchemaV3.self] }
     static var stages: [MigrationStage] {
-        [.lightweight(fromVersion: StillmoonSchemaV1.self, toVersion: StillmoonSchemaV2.self)]
+        [.lightweight(fromVersion: StillmoonSchemaV1.self, toVersion: StillmoonSchemaV2.self),
+         .lightweight(fromVersion: StillmoonSchemaV2.self, toVersion: StillmoonSchemaV3.self)]
     }
 }
 
@@ -31,11 +40,11 @@ enum StillmoonSchema {
     /// `directory` is where on-disk stores live (nil = SwiftData default).
     static func makeContainer(inMemory: Bool, directory: URL? = nil) throws -> ModelContainer {
         let health = configuration("health", [CheckInRecord.self, JournalEntryRecord.self,
-                                              SoundSessionRecord.self, SoundEventRecord.self],
+                                              SoundSessionRecord.self, SoundEventRecord.self, CalmCheckRecord.self],
                                    inMemory: inMemory, directory: directory)
         let account = configuration("account", [CompletionRecord.self, FeedbackRecord.self, SavedItemRecord.self],
                                     inMemory: inMemory, directory: directory)
-        return try ModelContainer(for: Schema(versionedSchema: StillmoonSchemaV2.self),
+        return try ModelContainer(for: Schema(versionedSchema: StillmoonSchemaV3.self),
                                   migrationPlan: StillmoonMigrationPlan.self,
                                   configurations: [health, account])
     }
@@ -47,6 +56,17 @@ enum StillmoonSchema {
         let account = configuration("account", [CompletionRecord.self, FeedbackRecord.self, SavedItemRecord.self],
                                     inMemory: false, directory: directory)
         return try ModelContainer(for: Schema(versionedSchema: StillmoonSchemaV1.self),
+                                  configurations: [health, account])
+    }
+
+    /// The Plan 4 (V2) on-disk layout, used only to prove the V2 to V3 migration.
+    static func makeV2ContainerForTesting(directory: URL) throws -> ModelContainer {
+        let health = configuration("health", [CheckInRecord.self, JournalEntryRecord.self,
+                                              SoundSessionRecord.self, SoundEventRecord.self],
+                                   inMemory: false, directory: directory)
+        let account = configuration("account", [CompletionRecord.self, FeedbackRecord.self, SavedItemRecord.self],
+                                    inMemory: false, directory: directory)
+        return try ModelContainer(for: Schema(versionedSchema: StillmoonSchemaV2.self),
                                   configurations: [health, account])
     }
 
@@ -260,6 +280,24 @@ final class LocalStore {
         save()
     }
 
+    // MARK: Calm checks
+
+    /// One record per check: saving again updates it.
+    func saveCalmCheck(_ check: CalmCheck) {
+        let owner = ownerID, id = check.id
+        let existing = fetch(FetchDescriptor<CalmCheckRecord>(predicate: #Predicate { $0.ownerID == owner && $0.id == id })).first
+        if let existing { existing.update(from: check) } else { context.insert(CalmCheckRecord(ownerID: owner, check: check)) }
+        save()
+    }
+
+    func calmChecks(from start: Date, to end: Date) -> [CalmCheck] {
+        let owner = ownerID
+        let descriptor = FetchDescriptor<CalmCheckRecord>(
+            predicate: #Predicate { $0.ownerID == owner && $0.at >= start && $0.at < end },
+            sortBy: [SortDescriptor(\.at)])
+        return fetch(descriptor).map(\.value)
+    }
+
     // MARK: Deletion
 
     /// Removes this owner's records only.
@@ -273,6 +311,7 @@ final class LocalStore {
             try context.delete(model: SavedItemRecord.self, where: #Predicate { $0.ownerID == owner })
             try context.delete(model: SoundSessionRecord.self, where: #Predicate { $0.ownerID == owner })
             try context.delete(model: SoundEventRecord.self, where: #Predicate { $0.ownerID == owner })
+            try context.delete(model: CalmCheckRecord.self, where: #Predicate { $0.ownerID == owner })
         } catch {
             assertionFailure("Delete failed: \(error)")
         }

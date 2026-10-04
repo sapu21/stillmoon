@@ -157,3 +157,44 @@ import StillmoonCore
                    correction: SoundCorrection(rawValue: correctionRaw) ?? .none)
     }
 }
+
+/// A calm check (spec: calm check). Health data: lives in the health store with check-ins.
+@Model final class CalmCheckRecord {
+    var id: UUID = UUID()
+    var ownerID: String = ""
+    var exerciseID: String = ""
+    var at: Date = Date.distantPast
+    var bpmBefore: Double?
+    var bpmAfter: Double?
+    var hrvBefore: Double?
+    var hrvAfter: Double?
+    var tenseBefore: Int?
+    var tenseAfter: Int?
+    var breathsStart: Double?
+    var breathsEnd: Double?
+
+    init(ownerID: String, check: CalmCheck) {
+        self.ownerID = ownerID
+        update(from: check)
+    }
+
+    func update(from c: CalmCheck) {
+        id = c.id
+        exerciseID = c.exerciseID
+        at = c.at
+        bpmBefore = c.bpmBefore
+        bpmAfter = c.bpmAfter
+        hrvBefore = c.hrvBefore
+        hrvAfter = c.hrvAfter
+        tenseBefore = c.tenseBefore
+        tenseAfter = c.tenseAfter
+        breathsStart = c.breathsStart
+        breathsEnd = c.breathsEnd
+    }
+
+    var value: CalmCheck {
+        CalmCheck(id: id, exerciseID: exerciseID, at: at, bpmBefore: bpmBefore, bpmAfter: bpmAfter,
+                  hrvBefore: hrvBefore, hrvAfter: hrvAfter, tenseBefore: tenseBefore, tenseAfter: tenseAfter,
+                  breathsStart: breathsStart, breathsEnd: breathsEnd)
+    }
+}
