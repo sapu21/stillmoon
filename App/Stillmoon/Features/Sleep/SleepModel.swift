@@ -9,14 +9,18 @@ struct NightRow: Identifiable, Hashable {
     let entry: JournalEntry?
     let checkIn: CheckIn?
     let soundEvents: [SoundEvent]
+    /// Calm checks from the evening before this morning.
+    let calmChecks: [CalmCheck]
     var id: Date { morning }
 
-    init(morning: Date, report: NightReport?, entry: JournalEntry?, checkIn: CheckIn?, soundEvents: [SoundEvent] = []) {
+    init(morning: Date, report: NightReport?, entry: JournalEntry?, checkIn: CheckIn?, soundEvents: [SoundEvent] = [],
+         calmChecks: [CalmCheck] = []) {
         self.morning = morning
         self.report = report
         self.entry = entry
         self.checkIn = checkIn
         self.soundEvents = soundEvents
+        self.calmChecks = calmChecks
     }
 }
 
@@ -81,23 +85,22 @@ struct NightRow: Identifiable, Hashable {
             let morning = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -offset, to: today)!)
             return (morning, NightWindow.forMorning(of: morning, calendar: calendar))
         }
-        var eventsByMorning: [Date: [SoundEvent]] = [:]
-        let allEvents = store.soundEvents(from: NightWindow.forMorning(of: oldestMorning, calendar: calendar).start, to: now)
-        for event in allEvents {
-            if let hit = windows.first(where: { $0.window.start <= event.at && event.at < $0.window.end }) {
-                eventsByMorning[hit.morning, default: []].append(event)
-            } else {
-                let next = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: event.at))!
-                eventsByMorning[next, default: []].append(event)
-            }
+        /// The night a moment belongs to; outside every window, the next morning.
+        func morning(for date: Date) -> Date {
+            windows.first(where: { $0.window.start <= date && date < $0.window.end })?.morning
+                ?? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))!
         }
-        let mornings = Set(reports.keys).union(entriesByMorning.keys).union(eventsByMorning.keys)
+        let historyStart = NightWindow.forMorning(of: oldestMorning, calendar: calendar).start
+        let eventsByMorning = Dictionary(grouping: store.soundEvents(from: historyStart, to: now)) { morning(for: $0.at) }
+        let calmByMorning = Dictionary(grouping: store.calmChecks(from: historyStart, to: now)) { morning(for: $0.at) }
+        let mornings = Set(reports.keys).union(entriesByMorning.keys).union(eventsByMorning.keys).union(calmByMorning.keys)
         rows = mornings.sorted(by: >).map { morning in
             NightRow(morning: morning,
                      report: reports[morning],
                      entry: entriesByMorning[morning]?.first,
                      checkIn: checkIns.first { calendar.isDate($0.date, inSameDayAs: morning) },
-                     soundEvents: (eventsByMorning[morning] ?? []).sorted { $0.at < $1.at })
+                     soundEvents: (eventsByMorning[morning] ?? []).sorted { $0.at < $1.at },
+                     calmChecks: calmByMorning[morning] ?? [])
         }
     }
 

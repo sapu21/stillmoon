@@ -102,6 +102,16 @@ struct SleepModelTests {
         #expect(m.rows[0].soundEvents.map(\.label) == [.snoringLike, .speechLike])
     }
 
+    @Test func calmChecksJoinTheNightThatFollows() async throws {
+        let (m, store, _) = try make(connected: false)
+        var check = CalmCheck(exerciseID: "breath", at: TestEnv.d(2026, 10, 1, 21, 30))
+        check.bpmBefore = 75
+        store.saveCalmCheck(check)
+        await m.refresh()
+        #expect(m.rows.map(\.morning) == [TestEnv.d(2026, 10, 2)])
+        #expect(m.rows[0].calmChecks == [check])
+    }
+
     @Test func eventsOutsideNightWindowsAreNotDropped() async throws {
         let (m, store, _) = try make(connected: false)
         let s = store.startSoundSession(at: TestEnv.d(2026, 10, 1, 14))

@@ -65,6 +65,7 @@ enum NightSummary {
 
 struct NightDetailView: View {
     @Environment(\.theme) private var theme
+    @Environment(AppEnvironment.self) private var env
     let row: NightRow
     var onCorrect: (SoundEvent, SoundCorrection) -> Void = { _, _ in }
 
@@ -115,6 +116,24 @@ struct NightDetailView: View {
                                     .font(.footnote)
                                     .foregroundStyle(theme.secondaryText)
                             }
+                        }
+                    }
+                }
+                if !row.calmChecks.isEmpty {
+                    Card {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Before bed").font(.headline).accessibilityAddTraits(.isHeader)
+                            ForEach(row.calmChecks) { check in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("\(env.catalog.title(for: check.exerciseID) ?? "Exercise") · \(check.at.formatted(date: .omitted, time: .shortened))")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(theme.secondaryText)
+                                    ForEach(CalmCheckLine.lines(for: check), id: \.self) { CalmLineView(line: $0) }
+                                }
+                            }
+                            Text("Phone estimates are approximate and only for you. They are not a medical measurement.")
+                                .font(.footnote)
+                                .foregroundStyle(theme.secondaryText)
                         }
                     }
                 }

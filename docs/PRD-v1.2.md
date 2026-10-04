@@ -33,6 +33,7 @@ Stillmoon helps users understand their sleep patterns and choose small, practica
 3. **Observations are not feelings.** Device estimates and the user's own reports are always shown separately and labelled.
 4. **Every suggestion has a reason.** No recommendation appears without a plain-language explanation.
 5. **Reward habits, not biology.** Progress comes from things the user does, never from sleep metrics they cannot control.
+6. **Body signals are estimates.** *(Amendment 2026-10-04, calm check.)* Heart rate, heart rate variability and breathing pace measured by the phone are shown as "estimate from your phone's camera/microphone", beside (never merged with) what the user reports. They are never turned into stress, anxiety or mood labels, never scored or rewarded, and never trigger anything at night.
 
 ### What the product does not claim
 
@@ -58,7 +59,7 @@ Illustrations: generated with Higgsfield from a locked style kit (4–6 referenc
 
 Stillmoon answers three questions and keeps their answers separate: What did my devices observe? How did I actually feel? What is one useful thing I can try?
 
-Non-goals for v1: diagnosing any condition; identifying a speaker, transcribing or storing audio; waking users for any inferred reason or a smart alarm; real-time stage detection; storing health data on Stillmoon servers; Android, Watch app, paid tier.
+Non-goals for v1: diagnosing any condition; labelling stress or anxiety from body signals; identifying a speaker, transcribing or storing audio; waking users for any inferred reason or a smart alarm; real-time stage detection; storing health data on Stillmoon servers; Android, Watch app, paid tier.
 
 Users: adults who struggle to unwind or wake at night; wearable owners wanting explanation; iPhone-only users (never imply the phone measured sleep stages).
 
@@ -161,6 +162,7 @@ Progress: weekly goal (default 3 wind-downs), journey path moves forward on comp
 | Account, preferences, saved items, completions, achievements, feedback | Supabase |
 | HealthKit samples, sleep sessions, sound events, check-ins, journal | Device; user's iCloud if sync on |
 | Raw audio | Never stored |
+| Calm checks (heart rate, HRV, breathing pace, tension answers) | Device; user's iCloud if sync on. Camera frames and audio never stored; tension answers optionally written to Apple Health State of Mind |
 | Analytics | Opt-in event counts only |
 
 Every local record carries the signed-in user's ID. Sign out asks keep or erase local data (default keep). Delete account removes server records and that account's local records. Export: ZIP of JSON (complete) + CSV (nights, check-ins, sound events). Safety language: "Your watch estimated…", "A speech-like sound was detected."; never "You were anxious". Referral only on structured signals: check-in option "Trouble sleeping most nights for 3+ weeks"; standing "When to talk to a doctor" article; snoring-like events marked "this was me" on 5 of 7 nights → one dismissible note, shown once. Journal text is never scanned.

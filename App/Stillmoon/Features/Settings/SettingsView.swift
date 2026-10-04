@@ -1,3 +1,4 @@
+import AVFAudio
 import SwiftUI
 import StillmoonCore
 
@@ -9,6 +10,7 @@ struct SettingsView: View {
     @State private var connecting = false
     @State private var soundDenied = false
     @State private var requestingSound = false
+    @State private var micDeniedForBreathing = false
 
     var body: some View {
         @Bindable var settings = env.settings
@@ -85,6 +87,43 @@ struct SettingsView: View {
                             if soundDenied {
                                 Text("Microphone access is off. You can turn it on in the Settings app, under Privacy & Security, Microphone.")
                             }
+                        }
+                    }
+                }
+                Section {
+                    Toggle("Offer a calm check", isOn: $settings.settings.calmCheckEnabled)
+                    Toggle("Listen to breathing", isOn: Binding(
+                        get: { settings.settings.breathListeningEnabled },
+                        set: { on in
+                            guard on else { settings.settings.breathListeningEnabled = false; return }
+                            Task {
+                                let granted = await AVAudioApplication.requestRecordPermission()
+                                settings.settings.breathListeningEnabled = granted
+                                micDeniedForBreathing = !granted
+                            }
+                        }))
+                    if env.health.isAvailable {
+                        Toggle("Save how I feel to Apple Health", isOn: Binding(
+                            get: { settings.settings.stateOfMindEnabled },
+                            set: { on in
+                                guard on else { settings.settings.stateOfMindEnabled = false; return }
+                                Task {
+                                    do {
+                                        try await env.health.requestStateOfMindAuthorization()
+                                        settings.settings.stateOfMindEnabled = true
+                                    } catch {
+                                        settings.settings.stateOfMindEnabled = false
+                                    }
+                                }
+                            }))
+                    }
+                } header: {
+                    Text("Calm check")
+                } footer: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Before and after a wind-down: how tense you feel, and a heart rate estimate from your fingertip over the camera. Breathing pace is estimated from the microphone during an exercise. Only the numbers are kept, on this iPhone; images and sound never are. Estimates are approximate and not a medical measurement.")
+                        if micDeniedForBreathing {
+                            Text("Microphone access is off. You can turn it on in the Settings app, under Privacy & Security, Microphone.")
                         }
                     }
                 }
