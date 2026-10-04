@@ -102,7 +102,7 @@ struct SettingsView: View {
                                 micDeniedForBreathing = !granted
                             }
                         }))
-                    if env.health.isAvailable {
+                    if #available(iOS 18, *), env.health.isAvailable {
                         Toggle("Save how I feel to Apple Health", isOn: Binding(
                             get: { settings.settings.stateOfMindEnabled },
                             set: { on in

@@ -47,14 +47,26 @@ enum TensionScale {
 
     /// Breathing estimates during the exercise: keeps the first and the latest clear one.
     func recordBreathing(_ perMinute: Double?) {
-        guard let perMinute else { return }
+        guard isEnabled, let perMinute else { return }
         if check.breathsStart == nil { check.breathsStart = perMinute }
         check.breathsEnd = perMinute
     }
 
-    func finishBefore() { if step == .before { step = .exercise } }
+    /// Ends the before step; returns the final tension answer, the only one written to Apple Health.
+    @discardableResult func finishBefore() -> Int? {
+        guard step == .before else { return nil }
+        step = .exercise
+        return check.tenseBefore
+    }
+
     func startAfter() { if offersCheckAgain { step = .after } }
-    func finishAfter() { if step == .after { step = .done } }
+
+    /// Ends the after step; returns the final tension answer, if any.
+    @discardableResult func finishAfter() -> Int? {
+        guard step == .after else { return nil }
+        step = .done
+        return check.tenseAfter
+    }
 }
 
 /// One result line; estimates and the user's own answers are always labelled apart (PRD principle 3).

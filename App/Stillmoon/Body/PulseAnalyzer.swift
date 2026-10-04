@@ -17,8 +17,8 @@ enum PulseIssue: Equatable, Sendable {
 }
 
 enum PulseResult: Equatable, Sendable {
-    /// Heart rate in beats per minute and RMSSD heart rate variability in milliseconds.
-    case reading(bpm: Double, hrv: Double)
+    /// Heart rate in beats per minute and RMSSD heart rate variability in milliseconds (nil when not computable).
+    case reading(bpm: Double, hrv: Double?)
     case unclear(PulseIssue)
 }
 
@@ -56,7 +56,7 @@ enum PulseAnalyzer {
         for i in 1..<intervals.count where steady[i] && steady[i - 1] {
             differences.append((intervals[i] - intervals[i - 1]) * 1000)
         }
-        let rmssd = differences.isEmpty ? 0 : sqrt(Signal.mean(differences.map { $0 * $0 }))
+        let rmssd: Double? = differences.isEmpty ? nil : sqrt(Signal.mean(differences.map { $0 * $0 }))
         return .reading(bpm: 60 / typical, hrv: rmssd)
     }
 }

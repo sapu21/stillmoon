@@ -7,8 +7,10 @@ struct CalmCheckView: View {
     @Environment(\.theme) private var theme
     let side: Side
     let flow: CalmCheckFlow
+    /// Called once, with the final answer, when this side finishes (not on every tap).
     let onTension: (Int) -> Void
     let onDone: () -> Void
+    @Environment(\.scenePhase) private var scenePhase
     @State private var camera = PulseCamera()
     @State private var tension: Int?
 
@@ -27,7 +29,6 @@ struct CalmCheckView: View {
                         Chip(title: TensionScale.label(level), isSelected: tension == level) {
                             tension = level
                             flow.recordTension(level)
-                            onTension(level)
                         }
                     }
                 }
@@ -46,6 +47,8 @@ struct CalmCheckView: View {
             .padding(20)
         }
         .onDisappear { camera.stop() }
+        // Leaving the app interrupts the camera; start the reading over rather than keep a skewed one.
+        .onChange(of: scenePhase) { _, phase in if phase != .active { camera.stop() } }
         .onChange(of: camera.state) { _, state in
             if case .finished(let result) = state { flow.recordPulse(result) }
         }
@@ -58,6 +61,8 @@ struct CalmCheckView: View {
 
     private func finish() {
         camera.stop()
+        let final = side == .before ? flow.finishBefore() : flow.finishAfter()
+        if let final { onTension(final) }
         onDone()
     }
 
@@ -73,6 +78,11 @@ struct CalmCheckView: View {
                         Label("Check my pulse", systemImage: "heart")
                     }
                     .buttonStyle(ChunkyButtonStyle(kind: .secondary))
+                case .preparing(let covering):
+                    Text(covering ? "Hold still while the camera settles…" : "Cover the camera and flash fully with your fingertip.")
+                        .font(.subheadline.weight(.semibold))
+                    Button("Stop") { camera.stop() }
+                        .font(.headline)
                 case .measuring(let progress, let covering):
                     HStack(spacing: 16) {
                         ZStack {

@@ -54,13 +54,14 @@ struct PulseAnalyzerTests {
         }
     }
 
-    @Test func measuresBeatToBeatVariation() {
+    @Test func measuresBeatToBeatVariation() throws {
         var beats: [Double] = [0.5]
         while beats.last! < 45 { beats.append(beats.last! + (beats.count.isMultiple(of: 2) ? 0.8 : 0.9)) }
         guard case .reading(_, let hrv) = PulseAnalyzer.analyze(Synthetic.pulse(beats: beats, seconds: 45), fps: Synthetic.fps) else {
             Issue.record("expected a reading"); return
         }
-        #expect(abs(hrv - 100) <= 10) // successive differences of 100 ms
+        let measured = try #require(hrv)
+        #expect(abs(measured - 100) <= 10) // successive differences of 100 ms
     }
 
     @Test func noFingerMeansNoNumber() {

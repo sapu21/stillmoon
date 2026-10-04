@@ -21,17 +21,20 @@ enum BreathGate {
     @ObservationIgnored private var engine: AVAudioEngine?
     @ObservationIgnored private var envelope: [Double] = []
     @ObservationIgnored private var sinceEstimate = 0
+    /// False once `stop()` runs, so a permission prompt that resolves late never starts the microphone.
+    @ObservationIgnored private var wanted = false
 
     func start() {
+        wanted = true
         guard engine == nil else { return }
         Task {
-            guard await AVAudioApplication.requestRecordPermission() else { return }
+            guard await AVAudioApplication.requestRecordPermission(), wanted else { return }
             begin()
         }
     }
 
     private func begin() {
-        guard engine == nil else { return }
+        guard engine == nil, wanted else { return }
         let engine = AVAudioEngine()
         do {
             let session = AVAudioSession.sharedInstance()
@@ -39,19 +42,12 @@ enum BreathGate {
             try session.setActive(true)
             let input = engine.inputNode
             let format = input.outputFormat(forBus: 0)
+            guard format.sampleRate > 0, format.channelCount > 0 else { return }
             let chunk = max(1, Int(format.sampleRate / Self.envelopeRate))
-            input.installTap(onBus: 0, bufferSize: AVAudioFrameCount(chunk * 4), format: format) { [weak self] buffer, _ in
-                guard let data = buffer.floatChannelData?[0] else { return }
-                let count = Int(buffer.frameLength)
-                var levels: [Double] = []
-                var start = 0
-                while start < count {
-                    let end = min(count, start + chunk)
-                    levels.append(BreathAnalyzer.rms(Array(UnsafeBufferPointer(start: data + start, count: end - start))))
-                    start = end
-                }
-                Task { @MainActor in self?.append(levels) }
-            }
+            input.installTap(onBus: 0, bufferSize: AVAudioFrameCount(chunk * 2), format: format,
+                             block: Self.makeTapBlock(chunk: chunk) { [weak self] levels in
+                                 Task { @MainActor in self?.append(levels) }
+                             })
             try engine.start()
             self.engine = engine
         } catch {
@@ -60,11 +56,14 @@ enum BreathGate {
     }
 
     func stop() {
+        wanted = false
+        rate = nil
+        envelope = []
+        sinceEstimate = 0
         guard let engine else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         self.engine = nil
-        envelope = []
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
@@ -80,4 +79,22 @@ enum BreathGate {
             rate = BreathAnalyzer.rate(envelope: envelope, sampleRate: Self.envelopeRate)
         }
     }
+
+    /// Built outside the main actor: the tap runs on an audio thread (same pattern as SoundAnalysisDetector).
+    private nonisolated static func makeTapBlock(chunk: Int,
+                                                 sink: @escaping @Sendable ([Double]) -> Void) -> AVAudioNodeTapBlock {
+        let box = ChunkerBox(chunker: EnvelopeChunker(chunk: chunk))
+        return { buffer, _ in
+            guard let data = buffer.floatChannelData?[0] else { return }
+            let samples = Array(UnsafeBufferPointer(start: data, count: Int(buffer.frameLength)))
+            let levels = box.chunker.append(samples)
+            if !levels.isEmpty { sink(levels) }
+        }
+    }
+}
+
+/// Holds the chunker for the audio thread; the tap is its only user, called serially.
+private nonisolated final class ChunkerBox: @unchecked Sendable {
+    var chunker: EnvelopeChunker
+    init(chunker: EnvelopeChunker) { self.chunker = chunker }
 }

@@ -46,10 +46,16 @@ nonisolated final class PulseCaptureEngine: NSObject, AVCaptureVideoDataOutputSa
         queue.async { [weak self] in self?.setTorch(on: true) }
     }
 
+    /// Captures self strongly: the queued work must run even after the owner lets go of the engine.
     func stop() {
-        queue.async { [weak self] in
-            self?.setTorch(on: false)
-            self?.session.stopRunning()
+        queue.async { self.setTorch(on: false); self.session.stopRunning() }
+    }
+
+    deinit {
+        // Backstop: never leave the flash on.
+        if let device, (try? device.lockForConfiguration()) != nil {
+            device.torchMode = .off
+            device.unlockForConfiguration()
         }
     }
 
@@ -87,6 +93,8 @@ enum PulseCameraError: Error { case unavailable, denied }
 @Observable final class PulseCamera {
     enum State: Equatable {
         case idle
+        /// Waiting for a fingertip, or letting exposure settle once it is there.
+        case preparing(covering: Bool)
         case measuring(progress: Double, covering: Bool)
         case finished(PulseResult)
         case failed(String)
@@ -97,14 +105,15 @@ enum PulseCameraError: Error { case unavailable, denied }
 
     private(set) var state: State = .idle
     @ObservationIgnored private var engine: PulseCaptureEngine?
-    @ObservationIgnored private var frames: [PulseFrame] = []
-    @ObservationIgnored private var firstTime: Double?
-    @ObservationIgnored private var lastTime: Double = 0
+    @ObservationIgnored private var recording = PulseRecording(seconds: seconds)
+    @ObservationIgnored private var starting = false
 
     func start() async {
+        guard !starting else { return }
+        starting = true
+        defer { starting = false }
         stop()
-        frames = []
-        firstTime = nil
+        recording = PulseRecording(seconds: Self.seconds)
         guard await Self.cameraAllowed() else {
             state = .failed("Camera access is off. You can turn it on in the Settings app, under Privacy & Security, Camera.")
             return
@@ -115,7 +124,7 @@ enum PulseCameraError: Error { case unavailable, denied }
         do {
             try engine.start()
             self.engine = engine
-            state = .measuring(progress: 0, covering: false)
+            state = .preparing(covering: false)
         } catch {
             state = .failed("The camera couldn't start. Please try again.")
         }
@@ -124,22 +133,24 @@ enum PulseCameraError: Error { case unavailable, denied }
     func stop() {
         engine?.stop()
         engine = nil
-        if case .measuring = state { state = .idle }
+        switch state {
+        case .preparing, .measuring: state = .idle
+        default: break
+        }
     }
 
     private func receive(_ frame: PulseFrame, at time: Double) {
-        guard case .measuring = state else { return }
-        if firstTime == nil { firstTime = time }
-        frames.append(frame)
-        lastTime = time
-        let elapsed = time - (firstTime ?? time)
-        if elapsed >= Self.seconds {
+        guard engine != nil else { return }
+        let covering = PulseAnalyzer.isCovering(frame)
+        switch recording.add(frame, at: time) {
+        case .waitingForFinger, .settling, .interrupted:
+            state = .preparing(covering: covering)
+        case .measuring(let progress):
+            state = .measuring(progress: progress, covering: covering)
+        case .done(let result):
             engine?.stop()
             engine = nil
-            let fps = Double(frames.count - 1) / max(elapsed, 0.001)
-            state = .finished(PulseAnalyzer.analyze(frames, fps: fps))
-        } else {
-            state = .measuring(progress: elapsed / Self.seconds, covering: PulseAnalyzer.isCovering(frame))
+            state = .finished(result)
         }
     }
 

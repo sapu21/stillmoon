@@ -42,7 +42,7 @@ struct CalmCheckFlowTests {
     }
 
     @Test func breathingKeepsFirstAndLastClearEstimates() {
-        let flow = CalmCheckFlow(exerciseID: "breath", at: at, enabled: false)
+        let flow = CalmCheckFlow(exerciseID: "breath", at: at, enabled: true)
         flow.recordBreathing(nil)
         flow.recordBreathing(14.2)
         flow.recordBreathing(nil)

@@ -40,9 +40,7 @@ struct PlayerView: View {
             switch calm.step {
             case .before:
                 dim(CalmCheckView(side: .before, flow: calm, onTension: { onTension?($0) }) {
-                    calm.finishBefore()
                     model.play()
-                    if canListen { breathing.start() }
                 })
             case .after:
                 calmAfter
@@ -68,11 +66,14 @@ struct PlayerView: View {
             guard calm.step == .exercise else { return }
             if model.stepIndex == 0 && model.elapsedInStep == 0 && !model.isComplete {
                 model.play()
-                if canListen { breathing.start() }
             }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { model.pause() }
+        }
+        // The microphone listens only while the exercise is actually playing in the foreground.
+        .onChange(of: model.isPlaying) { _, playing in
+            if playing && canListen && scenePhase == .active { breathing.start() } else { breathing.stop() }
         }
         .onChange(of: breathing.rate) { _, rate in calm.recordBreathing(rate) }
         .onChange(of: model.isComplete) { _, done in
@@ -95,7 +96,7 @@ struct PlayerView: View {
 
     /// The after-check sits on the screen that came before it: bright by day after a celebration, dim otherwise.
     @ViewBuilder private var calmAfter: some View {
-        let view = CalmCheckView(side: .after, flow: calm, onTension: { onTension?($0) }) { calm.finishAfter() }
+        let view = CalmCheckView(side: .after, flow: calm, onTension: { onTension?($0) }) {}
         if celebration != nil {
             view.foregroundStyle(Theme.day.text)
                 .background(Theme.day.accentSoft.ignoresSafeArea())
