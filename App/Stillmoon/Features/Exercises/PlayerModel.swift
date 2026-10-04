@@ -64,6 +64,11 @@ import StillmoonCore
         onFinish?(DateInterval(start: end.addingTimeInterval(-Double(max(playedSeconds, 1))), end: end))
     }
 
+    /// Progress including this completion, for the daytime celebration.
+    func progress(weeklyGoal: Int, calendar: Calendar) -> ProgressSummary {
+        ProgressCalculator.summary(completions: store.completions(), weeklyGoal: weeklyGoal, now: now(), calendar: calendar)
+    }
+
     private func advance() {
         if stepIndex + 1 < exercise.steps.count {
             stepIndex += 1

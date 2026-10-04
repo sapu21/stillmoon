@@ -115,4 +115,17 @@ struct PlayerModelTests {
         m.pause()
         #expect(calls == 0)
     }
+
+    @Test func progressIncludesTheFinishedWindDown() throws {
+        let store = try TestEnv.store()
+        let now = TestEnv.d(2026, 10, 2, 21)
+        let model = PlayerModel(exercise: TestEnv.catalog.exercises[0], store: store, now: { now })
+        model.play()
+        model.skipStep()
+        model.skipStep()
+        #expect(model.isComplete)
+        let progress = model.progress(weeklyGoal: 3, calendar: TestEnv.cal)
+        #expect(progress.windDownsThisWeek == 1)
+        #expect(progress.totalWindDowns == 1)
+    }
 }
