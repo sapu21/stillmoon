@@ -4,6 +4,8 @@ import SwiftUI
 struct CompletionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let summary: CompletionSummary
+    var calmLines: [CalmCheckLine] = []
+    var onCheckAgain: (() -> Void)?
     let onDone: () -> Void
     private let theme = Theme.day
     @State private var newMoonShown = false
@@ -25,6 +27,17 @@ struct CompletionView: View {
                     .multilineTextAlignment(.center)
                 if summary.showsProgress { weekCard }
                 if let star = summary.star { starCard(star) }
+                if !calmLines.isEmpty {
+                    Card {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(calmLines, id: \.self) { CalmLineView(line: $0) }
+                        }
+                    }
+                }
+                if let onCheckAgain {
+                    Button("Check again", action: onCheckAgain)
+                        .buttonStyle(ChunkyButtonStyle(kind: .secondary))
+                }
                 if let healthLine = summary.healthLine {
                     Text(healthLine)
                         .font(.footnote.weight(.semibold))

@@ -71,7 +71,15 @@ struct MainTabs: View {
                 PlayerView(exercise: exercise, store: env.store,
                            weeklyGoal: env.settings.settings.weeklyGoal,
                            savesToHealth: env.settings.settings.healthConnected,
-                           hideProgress: env.settings.settings.hideProgress) { interval in
+                           hideProgress: env.settings.settings.hideProgress,
+                           calmCheckEnabled: env.settings.settings.calmCheckEnabled,
+                           canListen: BreathGate.canListen(enabled: env.settings.settings.breathListeningEnabled,
+                                                           soundSessionActive: env.sound.isActive,
+                                                           category: exercise.category),
+                           onTension: { level in
+                               guard env.settings.settings.stateOfMindEnabled else { return }
+                               Task { try? await env.health.saveStateOfMind(tension: level, at: .now) }
+                           }) { interval in
                     guard env.settings.settings.healthConnected else { return }
                     Task { try? await env.health.saveMindfulSession(start: interval.start, end: interval.end) }
                 }

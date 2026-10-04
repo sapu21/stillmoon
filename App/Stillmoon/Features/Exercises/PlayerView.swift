@@ -11,14 +11,25 @@ struct PlayerView: View {
     @Environment(\.theme) private var appTheme
     @State private var model: PlayerModel
     @State private var celebration: CompletionSummary?
+    @State private var calm: CalmCheckFlow
+    @State private var breathing = BreathListener()
+    private let store: LocalStore
+    private let onTension: ((Int) -> Void)?
+    private let canListen: Bool
     private let weeklyGoal: Int
     private let savesToHealth: Bool
     private let hideProgress: Bool
     private let theme = Theme.night
 
     init(exercise: Exercise, store: LocalStore, weeklyGoal: Int = 3, savesToHealth: Bool = false,
-         hideProgress: Bool = false, onFinish: ((DateInterval) -> Void)? = nil) {
+         hideProgress: Bool = false, calmCheckEnabled: Bool = false, canListen: Bool = false,
+         onTension: ((Int) -> Void)? = nil, onFinish: ((DateInterval) -> Void)? = nil) {
         _model = State(initialValue: PlayerModel(exercise: exercise, store: store, onFinish: onFinish))
+        _calm = State(initialValue: CalmCheckFlow(exerciseID: exercise.id, at: .now,
+                                                  enabled: calmCheckEnabled && exercise.category == .windDown))
+        self.store = store
+        self.onTension = onTension
+        self.canListen = canListen
         self.weeklyGoal = weeklyGoal
         self.savesToHealth = savesToHealth
         self.hideProgress = hideProgress
@@ -26,11 +37,23 @@ struct PlayerView: View {
 
     var body: some View {
         Group {
-            if let celebration {
-                CompletionView(summary: celebration) { dismiss() }
-                    .transition(.opacity)
-            } else {
-                player
+            switch calm.step {
+            case .before:
+                dim(CalmCheckView(side: .before, flow: calm, onTension: { onTension?($0) }) {
+                    calm.finishBefore()
+                    model.play()
+                    if canListen { breathing.start() }
+                })
+            case .after:
+                calmAfter
+            case .exercise, .done:
+                if let celebration {
+                    CompletionView(summary: celebration, calmLines: CalmCheckLine.lines(for: calm.check),
+                                   onCheckAgain: calm.offersCheckAgain ? { calm.startAfter() } : nil) { dismiss() }
+                        .transition(.opacity)
+                } else {
+                    player
+                }
             }
         }
         .task {
@@ -42,12 +65,18 @@ struct PlayerView: View {
         }
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
-            if model.stepIndex == 0 && model.elapsedInStep == 0 && !model.isComplete { model.play() }
+            guard calm.step == .exercise else { return }
+            if model.stepIndex == 0 && model.elapsedInStep == 0 && !model.isComplete {
+                model.play()
+                if canListen { breathing.start() }
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { model.pause() }
         }
+        .onChange(of: breathing.rate) { _, rate in calm.recordBreathing(rate) }
         .onChange(of: model.isComplete) { _, done in
+            if done { breathing.stop() }
             guard done, CompletionStyle.style(for: model.exercise.category, isNight: appTheme.isNight) == .celebrate else { return }
             let summary = CompletionSummary(progress: model.progress(weeklyGoal: weeklyGoal, calendar: .current),
                                             playedSeconds: model.playedSeconds, savedToHealth: savesToHealth,
@@ -55,12 +84,36 @@ struct PlayerView: View {
             withAnimation(.easeInOut(duration: 0.4)) { celebration = summary }
         }
         .onDisappear {
+            breathing.stop()
+            if let check = calm.savable { store.saveCalmCheck(check) }
             model.pause()
             UIApplication.shared.isIdleTimerDisabled = false
         }
     }
 
     private var total: Int { model.exercise.durationSeconds }
+
+    /// The after-check sits on the screen that came before it: bright by day after a celebration, dim otherwise.
+    @ViewBuilder private var calmAfter: some View {
+        let view = CalmCheckView(side: .after, flow: calm, onTension: { onTension?($0) }) { calm.finishAfter() }
+        if celebration != nil {
+            view.foregroundStyle(Theme.day.text)
+                .background(Theme.day.accentSoft.ignoresSafeArea())
+                .environment(\.theme, .day)
+                .preferredColorScheme(.light)
+        } else {
+            dim(view)
+        }
+    }
+
+    private func dim(_ content: some View) -> some View {
+        content
+            .foregroundStyle(theme.text)
+            .tint(theme.accent)
+            .background(theme.background.ignoresSafeArea())
+            .environment(\.theme, theme)
+            .preferredColorScheme(.dark)
+    }
 
     private var player: some View {
         VStack(spacing: 24) {
@@ -85,6 +138,12 @@ struct PlayerView: View {
                 Text("Well done. Rest now.")
                     .font(.title.weight(.semibold))
                     .multilineTextAlignment(.center)
+                ForEach(CalmCheckLine.lines(for: calm.check), id: \.self) { CalmLineView(line: $0) }
+                if calm.offersCheckAgain {
+                    Button("Check again") { calm.startAfter() }
+                        .buttonStyle(ChunkyButtonStyle(kind: .secondary))
+                        .padding(.horizontal, 40)
+                }
                 Button("Done") { dismiss() }
                     .buttonStyle(ChunkyButtonStyle())
                     .padding(.horizontal, 40)
@@ -111,6 +170,12 @@ struct PlayerView: View {
                     }
                     .font(.footnote.monospacedDigit().weight(.semibold))
                     .foregroundStyle(theme.secondaryText)
+                    if let rate = breathing.rate {
+                        Text("About \(Int(rate.rounded())) breaths a minute · estimate")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(theme.secondaryText)
+                            .contentTransition(.numericText())
+                    }
                 }
                 HStack(spacing: 40) {
                     Button { model.togglePlay() } label: {

@@ -31,6 +31,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         CODE_SIGN_ENTITLEMENTS: App/Stillmoon/Stillmoon.entitlements
         INFOPLIST_KEY_NSHealthShareUsageDescription: "Stillmoon reads your sleep from Apple Health to show your nights and suggest a next step. Your sleep data stays on this iPhone."
+        INFOPLIST_KEY_NSCameraUsageDescription: "For the optional calm check: your fingertip over the camera and flash gives a heart rate estimate. Only the numbers are kept, never images."
         INFOPLIST_KEY_NSHealthUpdateUsageDescription: "Stillmoon saves completed exercises to Apple Health as Mindful Minutes."
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
