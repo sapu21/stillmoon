@@ -157,7 +157,8 @@ private struct StarNode: View {
                     .padding(.vertical, 4)
                     .background(theme.surface, in: Capsule())
                     .overlay(Capsule().strokeBorder(theme.cardBorder, lineWidth: 2))
-                    .offset(y: -30)
+                    .fixedSize()
+                    .offset(y: -36)
                     .accessibilityHidden(true)
             }
             .overlay(alignment: SkyPath.xOffset(forStar: star.index) > 0 ? .leading : .trailing) {
