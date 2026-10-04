@@ -36,6 +36,11 @@ struct RecentCompletion: Identifiable, Hashable {
     var isHidden: Bool { settings.settings.hideProgress }
     var stageName: String { Self.stageNames[min(max(summary.journeyStage, 0), Self.stageNames.count - 1)] }
 
+    var sky: [SkyStage] { SkyPath.stages(totalWindDowns: summary.totalWindDowns) }
+
+    /// What the glowing "next" star starts.
+    var nextWindDown: Exercise? { catalog.exercises.first { $0.category == .windDown } }
+
     func refresh() {
         let completions = store.completions()
         summary = ProgressCalculator.summary(completions: completions, weeklyGoal: settings.settings.weeklyGoal,

@@ -19,6 +19,9 @@ struct JourneyModelTests {
         #expect(model.summary.journeyStage == 2)
         #expect(model.stageName == "Quiet meadow")
         #expect(model.recent.map(\.title) == ["Body scan", "Gentle breathing"]) // unknown ids are skipped
+        let litStars = model.sky.flatMap(\.stars).filter { (star: SkyStar) in star.state == .lit }
+        #expect(litStars.count == 3)
+        #expect(model.nextWindDown?.title == "Gentle breathing")
     }
 
     @Test func respectsWeeklyGoalAndHide() throws {
