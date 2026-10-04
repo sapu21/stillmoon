@@ -44,7 +44,7 @@ Out: real authentication (Plan 5 wires Sign in with Apple, Google and Supabase i
 | reason box | #FDF1EC, text #8A3F2E | surface, secondaryText |
 | moon (Lumi, weekly moons, stars) | #FFE38F / #FFD66B, edge #E0AE33 | #EADFB8 |
 
-**Type:** Fredoka (600) for titles and big numbers, Nunito (600/700/800) for everything else, bundled as TTF (SIL OFL, licence files committed next to them) and registered in Info.plist. Always `Font.custom(_:size:relativeTo:)` so Dynamic Type scales. If a font fails to load, fall back to the system `.rounded` design.
+**Type:** SF Pro Rounded everywhere, via `.fontDesign(.rounded)` at the root, with semibold/bold weights standing in for the mockup's Fredoka titles and Nunito body. System text styles only, so Dynamic Type works unchanged. (The mockup's Google Fonts ship only as variable fonts, which SwiftUI cannot reliably weight under Dynamic Type; nothing is bundled.)
 
 **Components** (`Design/Components.swift`):
 - `Card`: surface, 2pt `cardBorder`, 5pt bottom edge, 22pt continuous radius. Night: no edge, 26pt radius.
@@ -87,7 +87,7 @@ Always on unless Reduce Motion: blink every ~5 s, pom-pom sway. Animations are d
 
 ## Screens
 
-**Today (day).** Sky header (~300pt) with rolling hills, a few twinkling dots, greeting and date, a weekly-moon pill ("2 of 3 this week", taps to Journey), profile button, Lumi (happy, float) with the director's speech bubble. Below, on a sheet with 28pt top corners, in order: check-in card (five `MoonPhase` buttons, labels "Not rested" / "Very rested"; when done, shows the chosen moon and "Edit"); Last night card ("Apple Watch estimate" or "You recorded" label, big Fredoka duration, time range, compact stage bar when stage detail exists); doctor and snoring notes as today; suggestion card (icon tile, category caption, title, duration and format, `RoundPlayButton`, `ReasonLine`, feedback menu); "Also for you" list; sound start button. Weekly goal now lives in the header pill. Cards rise in with a 0.08 s stagger on first appearance. Existing behavior (sheets, health refresh, night switching) is unchanged.
+**Today (day).** Sky header (~300pt) with rolling hills, a few twinkling dots, greeting and date, a weekly-moon pill ("2 of 3 this week"; informational, hidden when progress is hidden), profile button, Lumi (happy, float) with the director's speech bubble. Below, on a sheet with 28pt top corners, in order: check-in card (five `MoonPhase` buttons, labels "Not rested" / "Very rested"; when done, shows the chosen moon and "Edit"); Last night card ("Apple Watch estimate" or "You recorded" label, big Fredoka duration, time range, compact stage bar when stage detail exists); doctor and snoring notes as today; suggestion card (icon tile, category caption, title, duration and format, `RoundPlayButton`, `ReasonLine`, feedback menu); "Also for you" list; sound start button. Weekly goal now lives in the header pill. Cards rise in with a 0.08 s stagger on first appearance. Existing behavior (sheets, health refresh, night switching) is unchanged.
 
 **Today (night).** Night background with a few slow-twinkling stars (6 s, low opacity), "Good evening" / "Night mode is on", Lumi sleepy and drifting on a cloud, then one card: "Time to wind down" or "Awake at night?", exercise and reason, large flat Start, sound-session button, and "Show everything".
 
@@ -117,4 +117,4 @@ Always on unless Reduce Motion: blink every ~5 s, pom-pom sway. Animations are d
 
 - Hand-drawn Lumi in `Path` may need a visual tuning pass; keep geometry in one file with named constants.
 - Continuous animations on Today: use `TimelineView` and pause when the scene is inactive to protect battery.
-- Bundled fonts add about 400 KB.
+- The Google mark ships as a vector asset (`GoogleG`) in a new asset catalog.
