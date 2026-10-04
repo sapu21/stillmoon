@@ -17,9 +17,16 @@ struct AppSettings: Codable, Equatable {
     var snoringNoteShown = false
     var healthConnected = false
     var soundDetectionEnabled = false
+    /// Calm check (camera heart reading + tension) around wind-downs. Off by default.
+    var calmCheckEnabled = false
+    /// Breathing-pace estimate from the microphone in the player. Off by default.
+    var breathListeningEnabled = false
+    /// Write tension answers to Apple Health State of Mind. Off by default.
+    var stateOfMindEnabled = false
 
     enum CodingKeys: String, CodingKey {
         case goal, bedtime, wakeTime, weeklyGoal, hasOnboarded, hideProgress, nightModeOverride, snoringNoteShown, healthConnected, soundDetectionEnabled
+        case calmCheckEnabled, breathListeningEnabled, stateOfMindEnabled
     }
 
     init() {}
@@ -37,6 +44,9 @@ struct AppSettings: Codable, Equatable {
         snoringNoteShown = try c.decodeIfPresent(Bool.self, forKey: .snoringNoteShown) ?? false
         healthConnected = try c.decodeIfPresent(Bool.self, forKey: .healthConnected) ?? false
         soundDetectionEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundDetectionEnabled) ?? false
+        calmCheckEnabled = try c.decodeIfPresent(Bool.self, forKey: .calmCheckEnabled) ?? false
+        breathListeningEnabled = try c.decodeIfPresent(Bool.self, forKey: .breathListeningEnabled) ?? false
+        stateOfMindEnabled = try c.decodeIfPresent(Bool.self, forKey: .stateOfMindEnabled) ?? false
     }
 }
 

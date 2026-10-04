@@ -48,4 +48,24 @@ final class HealthKitService: HealthDataSource {
                                       start: start, end: end)
         try await store.save(sample)
     }
+
+    func requestStateOfMindAuthorization() async throws {
+        guard isAvailable else { throw HealthError.unavailable }
+        guard #available(iOS 18, *) else { return }
+        try await store.requestAuthorization(toShare: [HKObjectType.stateOfMindType()], read: [])
+    }
+
+    func saveStateOfMind(tension: Int, at date: Date) async throws {
+        guard isAvailable else { throw HealthError.unavailable }
+        guard #available(iOS 18, *) else { return }
+        let labels: [HKStateOfMind.Label] = switch StateOfMindMapping.feeling(tension: tension) {
+        case .calm: [.calm]
+        case .stressed: [.stressed]
+        case nil: []
+        }
+        let state = HKStateOfMind(date: date, kind: .momentaryEmotion,
+                                  valence: StateOfMindMapping.valence(tension: tension),
+                                  labels: labels, associations: [.health])
+        try await store.save(state)
+    }
 }

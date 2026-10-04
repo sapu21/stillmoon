@@ -8,6 +8,8 @@ final class FakeHealthSource: HealthDataSource {
     var failReads = false
     private(set) var authorizationRequested = false
     private(set) var mindfulSessions: [DateInterval] = []
+    private(set) var stateOfMindRequested = false
+    private(set) var statesOfMind: [(tension: Int, at: Date)] = []
 
     init(samples: [SleepSample] = []) {
         self.samples = samples
@@ -26,6 +28,16 @@ final class FakeHealthSource: HealthDataSource {
     func saveMindfulSession(start: Date, end: Date) async throws {
         guard isAvailable else { throw HealthError.unavailable }
         mindfulSessions.append(DateInterval(start: start, end: end))
+    }
+
+    func requestStateOfMindAuthorization() async throws {
+        guard isAvailable else { throw HealthError.unavailable }
+        stateOfMindRequested = true
+    }
+
+    func saveStateOfMind(tension: Int, at date: Date) async throws {
+        guard isAvailable else { throw HealthError.unavailable }
+        statesOfMind.append((tension, date))
     }
 
     /// A staged night: 23:00 the evening before `morning` to 06:30 on it (7 h 20 m asleep).

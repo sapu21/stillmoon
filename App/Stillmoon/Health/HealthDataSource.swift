@@ -12,6 +12,10 @@ protocol HealthDataSource: AnyObject {
     /// Samples overlapping [start, end), from every source.
     func sleepSamples(from start: Date, to end: Date) async throws -> [SleepSample]
     func saveMindfulSession(start: Date, end: Date) async throws
+    /// Asks to write State of Mind (iOS 18+); a no-op on older systems.
+    func requestStateOfMindAuthorization() async throws
+    /// Writes the user's own tension answer (1...5) as a momentary State of Mind. Never read back.
+    func saveStateOfMind(tension: Int, at date: Date) async throws
 }
 
 extension SleepStage {
