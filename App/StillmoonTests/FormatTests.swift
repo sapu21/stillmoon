@@ -23,4 +23,10 @@ struct FormatTests {
         #expect(ExerciseCategory.awakeAtNight.title == "Awake at Night")
         #expect(Goal.consistency.title == "Build a steady routine")
     }
+
+    @Test func everyGoalHasASubtitleAndItsOwnSymbol() {
+        #expect(Goal.allCases.allSatisfy { !$0.subtitle.isEmpty })
+        #expect(Set(Goal.allCases.map(\.symbol)).count == Goal.allCases.count)
+        #expect(Goal.unwind.subtitle == "Calm the mind when the lights go out")
+    }
 }

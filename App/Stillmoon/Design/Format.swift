@@ -41,4 +41,22 @@ extension Goal {
         case .consistency: "Build a steady routine"
         }
     }
+
+    var subtitle: String {
+        switch self {
+        case .unwind: "Calm the mind when the lights go out"
+        case .understandSleep: "Make sense of what your watch records"
+        case .nightWaking: "Gentle help for 3 a.m. moments"
+        case .consistency: "Small habits, steadier bedtimes"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .unwind: "moon.stars"
+        case .understandSleep: "chart.bar"
+        case .nightWaking: "sparkles"
+        case .consistency: "calendar"
+        }
+    }
 }
