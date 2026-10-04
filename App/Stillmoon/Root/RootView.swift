@@ -70,7 +70,8 @@ struct MainTabs: View {
             if let exercise = env.catalog.exercise(id: request.exerciseID) {
                 PlayerView(exercise: exercise, store: env.store,
                            weeklyGoal: env.settings.settings.weeklyGoal,
-                           savesToHealth: env.settings.settings.healthConnected) { interval in
+                           savesToHealth: env.settings.settings.healthConnected,
+                           hideProgress: env.settings.settings.hideProgress) { interval in
                     guard env.settings.settings.healthConnected else { return }
                     Task { try? await env.health.saveMindfulSession(start: interval.start, end: interval.end) }
                 }

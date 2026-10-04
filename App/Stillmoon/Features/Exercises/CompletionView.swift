@@ -23,10 +23,10 @@ struct CompletionView: View {
                     .font(.headline)
                     .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.center)
-                weekCard
+                if summary.showsProgress { weekCard }
                 if let star = summary.star { starCard(star) }
-                if summary.savedToHealth {
-                    Text("Saved to Apple Health as Mindful Minutes")
+                if let healthLine = summary.healthLine {
+                    Text(healthLine)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(theme.secondaryText)
                 }

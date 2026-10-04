@@ -34,6 +34,15 @@ enum SkyPath {
         (1..<thresholds.count).first { index >= thresholds[$0 - 1] && index < thresholds[$0] }
     }
 
+    /// Lumi beside the next star: sleepy and drifting at night (PRD §2: no celebration at night).
+    static func lumi(isNight: Bool) -> LumiDirector.Line {
+        isNight ? LumiDirector.Line(mood: .sleepy, motion: .drift, text: nil)
+                : LumiDirector.Line(mood: .happy, motion: .float, text: nil)
+    }
+
+    /// Star shimmer and the next-star pulse: daytime only, never with Reduce Motion.
+    static func animatesStars(isNight: Bool, reduceMotion: Bool) -> Bool { !isNight && !reduceMotion }
+
     /// Horizontal offset from the path's center line: a gentle zigzag.
     static func xOffset(forStar index: Int) -> CGFloat {
         let pattern: [CGFloat] = [0, -60, -90, -60, 0, 60, 90, 60]

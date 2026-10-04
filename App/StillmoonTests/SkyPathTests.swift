@@ -39,3 +39,13 @@ struct SkyPathTests {
         #expect(SkyPath.xOffset(forStar: 8) == SkyPath.xOffset(forStar: 0))
     }
 }
+
+struct SkyPathNightTests {
+    @Test func journeyIsCalmAtNight() {
+        #expect(SkyPath.lumi(isNight: true) == LumiDirector.Line(mood: .sleepy, motion: .drift, text: nil))
+        #expect(SkyPath.lumi(isNight: false) == LumiDirector.Line(mood: .happy, motion: .float, text: nil))
+        #expect(!SkyPath.animatesStars(isNight: true, reduceMotion: false))
+        #expect(!SkyPath.animatesStars(isNight: false, reduceMotion: true))
+        #expect(SkyPath.animatesStars(isNight: false, reduceMotion: false))
+    }
+}

@@ -13,13 +13,15 @@ struct PlayerView: View {
     @State private var celebration: CompletionSummary?
     private let weeklyGoal: Int
     private let savesToHealth: Bool
+    private let hideProgress: Bool
     private let theme = Theme.night
 
     init(exercise: Exercise, store: LocalStore, weeklyGoal: Int = 3, savesToHealth: Bool = false,
-         onFinish: ((DateInterval) -> Void)? = nil) {
+         hideProgress: Bool = false, onFinish: ((DateInterval) -> Void)? = nil) {
         _model = State(initialValue: PlayerModel(exercise: exercise, store: store, onFinish: onFinish))
         self.weeklyGoal = weeklyGoal
         self.savesToHealth = savesToHealth
+        self.hideProgress = hideProgress
     }
 
     var body: some View {
@@ -48,7 +50,8 @@ struct PlayerView: View {
         .onChange(of: model.isComplete) { _, done in
             guard done, CompletionStyle.style(for: model.exercise.category, isNight: appTheme.isNight) == .celebrate else { return }
             let summary = CompletionSummary(progress: model.progress(weeklyGoal: weeklyGoal, calendar: .current),
-                                            playedSeconds: model.playedSeconds, savedToHealth: savesToHealth)
+                                            playedSeconds: model.playedSeconds, savedToHealth: savesToHealth,
+                                            hideProgress: hideProgress)
             withAnimation(.easeInOut(duration: 0.4)) { celebration = summary }
         }
         .onDisappear {

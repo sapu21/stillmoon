@@ -130,7 +130,7 @@ private struct StarNode: View {
         switch star.state {
         case .lit:
             node(fill: theme.moon, edge: theme.moonEdge, symbol: "star.fill", tint: .white, size: 56)
-                .symbolEffect(.pulse, options: .repeating, isActive: !reduceMotion)
+                .symbolEffect(.pulse, options: .repeating, isActive: animates)
                 .accessibilityElement()
                 .accessibilityLabel("Star \(star.index + 1), lit")
         case .locked:
@@ -146,8 +146,8 @@ private struct StarNode: View {
             .background {
                 Circle().fill(theme.accent)
                     .frame(width: 68, height: 68)
-                    .scaleEffect(pulsing ? 1.6 : 1)
-                    .opacity(pulsing ? 0 : 0.5)
+                    .scaleEffect(pulsing && animates ? 1.6 : 1)
+                    .opacity(pulsing && animates ? 0 : 0.5)
             }
             .overlay(alignment: .top) {
                 Text("TONIGHT")
@@ -162,16 +162,19 @@ private struct StarNode: View {
                     .accessibilityHidden(true)
             }
             .overlay(alignment: SkyPath.xOffset(forStar: star.index) > 0 ? .leading : .trailing) {
-                LumiView(mood: .happy, motion: .float, size: 90)
+                LumiView(mood: SkyPath.lumi(isNight: theme.isNight).mood,
+                         motion: SkyPath.lumi(isNight: theme.isNight).motion, size: 90)
                     .offset(x: SkyPath.xOffset(forStar: star.index) > 0 ? -100 : 100)
             }
             .onAppear {
-                guard !reduceMotion else { return }
+                guard animates else { return }
                 withAnimation(.easeOut(duration: 2).repeatForever(autoreverses: false)) { pulsing = true }
             }
             .accessibilityLabel(nextTitle.map { "Next star. Start \($0)" } ?? "Next star")
         }
     }
+
+    private var animates: Bool { SkyPath.animatesStars(isNight: theme.isNight, reduceMotion: reduceMotion) }
 
     private func node(fill: Color, edge: Color, symbol: String, tint: Color, size: CGFloat) -> some View {
         ZStack {
