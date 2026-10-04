@@ -11,10 +11,10 @@ struct CheckInSheet: View {
     @State private var persistent: Bool
     @State private var note: String
 
-    init(existing: CheckIn?, onSave: @escaping (CheckIn) -> Void) {
+    init(existing: CheckIn?, initialLevel: Int? = nil, onSave: @escaping (CheckIn) -> Void) {
         self.existing = existing
         self.onSave = onSave
-        _restedness = State(initialValue: existing?.restedness ?? 3)
+        _restedness = State(initialValue: initialLevel ?? existing?.restedness ?? 3)
         _tense = State(initialValue: existing?.tenseAtBedtime ?? false)
         _woke = State(initialValue: existing?.wokeDuringNight ?? false)
         _persistent = State(initialValue: existing?.persistentDifficulty ?? false)

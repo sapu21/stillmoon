@@ -158,4 +158,12 @@ struct TodayModelTests {
         m.dismissSnoringNote()
         #expect(!m.showsSnoringNote)
     }
+
+    @Test func metaDescribesExercisesOnly() throws {
+        let model = TodayModel(store: try TestEnv.store(), settings: TestEnv.settings(), catalog: TestEnv.catalog)
+        let exercise = ResolvedRecommendation(itemID: "breath", kind: .exercise, title: "Gentle breathing", reason: "")
+        let article = ResolvedRecommendation(itemID: "steady-bedtime", kind: .article, title: "Keeping a steady bedtime", reason: "")
+        #expect(model.meta(for: exercise) == "1 min · Text")
+        #expect(model.meta(for: article) == nil)
+    }
 }

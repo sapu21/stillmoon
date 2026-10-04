@@ -65,6 +65,12 @@ struct ResolvedRecommendation: Identifiable, Hashable {
 
     var hideProgress: Bool { settings.settings.hideProgress }
 
+    /// "5 min · Audio" for exercises; nil for articles.
+    func meta(for rec: ResolvedRecommendation) -> String? {
+        guard let exercise = catalog.exercise(id: rec.itemID) else { return nil }
+        return "\(Format.exerciseLength(seconds: exercise.durationSeconds)) · \(exercise.format == .audio ? "Audio" : "Text")"
+    }
+
     static func greeting(hour: Int) -> String {
         switch hour {
         case 5..<12: "Good morning"
